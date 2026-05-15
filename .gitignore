@@ -26,3 +26,6 @@ npm-debug.log*
 .vscode/
 .idea/
 *.swp
+
+# Claude Code per-machine settings (project-level settings.json may be committed; .local is private)
+.claude/settings.local.json
