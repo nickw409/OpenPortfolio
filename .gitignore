@@ -1,0 +1,28 @@
+node_modules/
+dist/
+build/
+out/
+coverage/
+.vite/
+
+# Local data — never committed
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
