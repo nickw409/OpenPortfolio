@@ -11,19 +11,22 @@ Status legend:
 
 ## 1. Database foundation and money types
 
-**Status: Not started.**
+**Status: Complete.**
 
 SQLite (WAL mode) + Drizzle ORM as the persistence layer. Establishes the financial-integrity invariants that the rest of the codebase depends on. Without this, no other workstream can land cleanly.
 
-Remaining:
-- [ ] Drizzle setup with SQLite driver, WAL mode enabled at connection open
-- [ ] `Money` integer-cents type with branded TypeScript primitive — `type Money = number & { __brand: 'money' }` — and a small library of operations (add, subtract, multiply by ratio, divide returning ratio, format) that refuse to mix `Money` with `number`
-- [ ] Lint rule or unit test that fails if `number` arithmetic is performed on values typed as `Money`
-- [ ] Schema migration system with versioned migration files in `migrations/` (root); runtime migration check on app start
-- [ ] Soft-delete convention: every table that holds user data includes `created_at`, `updated_at`, `deleted_at` (nullable) timestamps; all standard query helpers filter `deleted_at IS NULL` by default with explicit opt-in for inclusion
-- [ ] Database file location resolved through Electron's `app.getPath('userData')` once that workstream lands; configurable for dev
-- [ ] Backup / export utility: dump the SQLite file to a user-chosen location, with a checksum
-- [ ] Initial schema: `accounts`, `securities`, `transactions`, `positions` (derived/materialized view or query), `price_history`, `cpi_data`, `dashboard_layouts`, `tile_configs`, `audit_log`
+Landed:
+- [x] Drizzle setup with SQLite driver, WAL mode enabled at connection open
+- [x] `Money` integer-cents type with branded TypeScript primitive — `type Money = number & { __brand: 'money' }` — and a small library of operations (add, subtract, multiply by ratio, divide returning ratio, format) that refuse to mix `Money` with `number`
+- [x] Lint rule or unit test that fails if `number` arithmetic is performed on values typed as `Money`
+- [x] Schema migration system with versioned migration files in `migrations/` (root)
+- [x] Soft-delete convention: every table that holds user data includes `created_at`, `updated_at`, `deleted_at` (nullable) timestamps; all standard query helpers filter `deleted_at IS NULL` by default with explicit opt-in for inclusion
+- [x] Backup / export utility: dump the SQLite file to a user-chosen location, with a checksum
+- [x] Initial schema: 10 tables (`accounts`, `securities`, `transactions`, `price_history`, `cpi_data`, `dashboard_layouts`, `tile_configs`, `audit_log`, plus `tags` and `transaction_tags`) and `positions` as a derived view — see [specs/2026-05-15-initial-schema-design.md](specs/2026-05-15-initial-schema-design.md) for the table-list rationale
+
+Deferred to dependent workstreams:
+- Runtime migration check on app start — `runMigrations()` is built; wiring it into the Hono boot moves to Workstream 2.
+- Database file location via Electron's `app.getPath('userData')` — env var `OPENPORTFOLIO_DB_PATH` covers dev; Electron integration moves to Workstream 11.
 
 ---
 
