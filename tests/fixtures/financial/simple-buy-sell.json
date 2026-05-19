@@ -1,0 +1,92 @@
+{
+  "name": "simple-buy-sell",
+  "description": "Two buys at different prices, half-lot sell. FIFO consumes oldest ($10 basis); LIFO consumes newest ($20 basis). Realized gain differs by $500.",
+  "transactions": [
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 1000,
+      "amount_cents": 100000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-02-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 2000,
+      "amount_cents": 200000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 3,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "sell",
+      "transaction_date": "2026-03-01T00:00:00Z",
+      "quantity": 50,
+      "price_cents": 2500,
+      "amount_cents": 125000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "fifo",
+      "method": "fifo",
+      "asOf": "2026-12-31T00:00:00Z",
+      "prices": null,
+      "methodFor": null,
+      "lotSelections": null,
+      "expected": {
+        "openPositions": [
+          { "account_id": 1, "security_id": 1, "quantity": 150, "cost_basis_cents": 250000 }
+        ],
+        "closedLots": [
+          {
+            "sourceTxId": 1,
+            "sellTxId": 3,
+            "quantity": 50,
+            "cost_basis_cents": 50000,
+            "proceeds_cents": 125000,
+            "realized_gain_cents": 75000
+          }
+        ],
+        "income": { "dividends_cents": 0, "interest_cents": 0, "fees_cents": 0 }
+      }
+    },
+    {
+      "name": "lifo",
+      "method": "lifo",
+      "asOf": "2026-12-31T00:00:00Z",
+      "prices": null,
+      "methodFor": null,
+      "lotSelections": null,
+      "expected": {
+        "openPositions": [
+          { "account_id": 1, "security_id": 1, "quantity": 150, "cost_basis_cents": 200000 }
+        ],
+        "closedLots": [
+          {
+            "sourceTxId": 2,
+            "sellTxId": 3,
+            "quantity": 50,
+            "cost_basis_cents": 100000,
+            "proceeds_cents": 125000,
+            "realized_gain_cents": 25000
+          }
+        ],
+        "income": { "dividends_cents": 0, "interest_cents": 0, "fees_cents": 0 }
+      }
+    }
+  ]
+}

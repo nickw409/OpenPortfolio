@@ -1,0 +1,95 @@
+{
+  "name": "dividend-stream",
+  "description": "Two buys plus four dividend payments. Dividends accumulate in the income summary; they do not affect cost basis. Total dividends $500 = 50000 cents.",
+  "transactions": [
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 5000,
+      "amount_cents": 500000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "dividend",
+      "transaction_date": "2026-03-15T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 10000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 3,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "dividend",
+      "transaction_date": "2026-06-15T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 10000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 4,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-07-01T00:00:00Z",
+      "quantity": 50,
+      "price_cents": 5500,
+      "amount_cents": 275000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 5,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "dividend",
+      "transaction_date": "2026-09-15T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 15000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 6,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "dividend",
+      "transaction_date": "2026-12-15T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 15000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "fifo",
+      "method": "fifo",
+      "asOf": "2026-12-31T00:00:00Z",
+      "prices": null,
+      "methodFor": null,
+      "lotSelections": null,
+      "expected": {
+        "openPositions": [
+          { "account_id": 1, "security_id": 1, "quantity": 150, "cost_basis_cents": 775000 }
+        ],
+        "closedLots": [],
+        "income": { "dividends_cents": 50000, "interest_cents": 0, "fees_cents": 0 }
+      }
+    }
+  ]
+}

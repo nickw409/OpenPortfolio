@@ -1,0 +1,80 @@
+{
+  "name": "split-mid-history",
+  "description": "Buy 100@$50, 2-for-1 split, buy 50@$30, sell 75@$35. After split lot 1 is 200 shares with the original $5000 basis preserved. FIFO sells 75 of those 200 → 187.50 cost (= $5000 × 75/200).",
+  "transactions": [
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 5000,
+      "amount_cents": 500000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "split",
+      "transaction_date": "2026-03-01T00:00:00Z",
+      "quantity": 2.0,
+      "price_cents": null,
+      "amount_cents": 0,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 3,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-06-01T00:00:00Z",
+      "quantity": 50,
+      "price_cents": 3000,
+      "amount_cents": 150000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 4,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "sell",
+      "transaction_date": "2026-09-01T00:00:00Z",
+      "quantity": 75,
+      "price_cents": 3500,
+      "amount_cents": 262500,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "fifo",
+      "method": "fifo",
+      "asOf": "2026-12-31T00:00:00Z",
+      "prices": null,
+      "methodFor": null,
+      "lotSelections": null,
+      "expected": {
+        "openPositions": [
+          { "account_id": 1, "security_id": 1, "quantity": 175, "cost_basis_cents": 462500 }
+        ],
+        "closedLots": [
+          {
+            "sourceTxId": 1,
+            "sellTxId": 4,
+            "quantity": 75,
+            "cost_basis_cents": 187500,
+            "proceeds_cents": 262500,
+            "realized_gain_cents": 75000
+          }
+        ],
+        "income": { "dividends_cents": 0, "interest_cents": 0, "fees_cents": 0 }
+      }
+    }
+  ]
+}

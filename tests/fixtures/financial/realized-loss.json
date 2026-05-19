@@ -1,0 +1,54 @@
+{
+  "name": "realized-loss",
+  "description": "Full lot sold at a loss. Confirms negative realized_gain_cents sign convention and that an emptied lot disappears from openPositions.",
+  "transactions": [
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 5000,
+      "amount_cents": 500000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "sell",
+      "transaction_date": "2026-06-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 4000,
+      "amount_cents": 400000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "fifo",
+      "method": "fifo",
+      "asOf": "2026-12-31T00:00:00Z",
+      "prices": null,
+      "methodFor": null,
+      "lotSelections": null,
+      "expected": {
+        "openPositions": [],
+        "closedLots": [
+          {
+            "sourceTxId": 1,
+            "sellTxId": 2,
+            "quantity": 100,
+            "cost_basis_cents": 500000,
+            "proceeds_cents": 400000,
+            "realized_gain_cents": -100000
+          }
+        ],
+        "income": { "dividends_cents": 0, "interest_cents": 0, "fees_cents": 0 }
+      }
+    }
+  ]
+}
