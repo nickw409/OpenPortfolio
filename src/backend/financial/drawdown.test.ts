@@ -1,6 +1,7 @@
 import { computeDrawdown } from './drawdown';
 import { computeValuationSeries } from './valuation';
-import { buildPriceHistory, buildTx, D, dateD, resetTxIds } from './test-helpers';
+import { buildCpiSeries, buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns } from './test-helpers';
+import { FinancialError } from './errors';
 
 beforeEach(() => resetTxIds());
 
@@ -101,5 +102,87 @@ describe('computeDrawdown — unrecovered drawdown', () => {
     expect(result.nominal.max_drawdown_pct).toBeCloseTo(-25, 4);
     expect(result.nominal.max_drawdown_recovery_date).toBeNull();
     expect(result.nominal.current_drawdown_pct).toBeCloseTo(-25, 4);
+  });
+});
+
+describe('computeDrawdown — real branch', () => {
+  it('real drawdown deeper than nominal when CPI inflates through the trough', () => {
+    // Nominal TR index: 1.0 → 1.2 → 1.0 → 1.0 (nominal DD = −16.67%).
+    // CPI inflates 10% over the period — real index deflated by CPI
+    // grows less, so the relative drop from peak is deeper.
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    const prices = buildPriceHistory([
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-04-01', 1200],
+          ['2026-07-01', 1000],
+          ['2026-10-01', 1000],
+        ],
+      ],
+    ]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2026-10-01') },
+      { scope: 'portfolio', maxStalenessDays: 95 },
+    );
+    const cpi = buildCpiSeries([
+      ['2026-01-01', 300.0],
+      ['2026-10-01', 330.0], // +10% over 9 months
+    ]);
+    const result = computeDrawdown(series, cpi);
+    expect(result.real).not.toBeNull();
+    // Real drawdown should be strictly deeper (more negative) than nominal.
+    expect(result.real!.max_drawdown_pct).toBeLessThan(result.nominal.max_drawdown_pct);
+  });
+
+  it('throws cpi.out_of_range when CPI does not cover the requested range', () => {
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, [['2026-01-01', 1000], ['2026-02-01', 1100]]]]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2026-02-01') },
+      { scope: 'portfolio', maxStalenessDays: 35 },
+    );
+    // CPI series ends before the engine's last day.
+    const cpi = buildCpiSeries([
+      ['2026-01-01', 300.0],
+      ['2026-01-15', 301.0],
+    ]);
+    expect(() => computeDrawdown(series, cpi)).toThrow(FinancialError);
+  });
+});
+
+describe('fixture: drawdown-2008', () => {
+  it('reports ~−40% max drawdown that never recovers', () => {
+    const fx = loadFixture('drawdown-2008');
+    const series = computeValuationSeries(
+      reviveTxns(fx.transactions),
+      revivePrices(fx.price_history),
+      { from: new Date(fx.range.from), to: new Date(fx.range.to) },
+      { scope: fx.scope, maxStalenessDays: fx.max_staleness_days },
+    );
+    const result = computeDrawdown(series);
+    expect(result.nominal.max_drawdown_pct).toBeCloseTo(fx.expected.max_drawdown_pct_approx, 0);
+    expect(result.nominal.max_drawdown_recovery_date).toBeNull();
   });
 });

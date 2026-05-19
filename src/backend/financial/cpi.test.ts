@@ -1,6 +1,6 @@
 import { FinancialError } from './errors';
 import { cpiAt, computeRealReturn } from './cpi';
-import { buildCpiSeries, dateD } from './test-helpers';
+import { buildCpiSeries, dateD, loadFixture } from './test-helpers';
 
 describe('cpiAt — exact-date lookup', () => {
   it('returns the index on an exact release date', () => {
@@ -131,5 +131,22 @@ describe('computeRealReturn — period-boundary deflation', () => {
       expect(e).toBeInstanceOf(FinancialError);
       expect((e as FinancialError).code).toBe('cpi.out_of_range');
     }
+  });
+});
+
+describe('fixture: real-returns-1979-1981', () => {
+  it('computeRealReturn matches hand-computed CPI deflation', () => {
+    const fx = loadFixture('real-returns-1979-1981');
+    const cpi = fx.cpi.map((p: { date: string; index: number }) => ({
+      date: new Date(p.date),
+      index: p.index,
+    }));
+    const result = computeRealReturn(
+      fx.nominal_pct_total,
+      { from: new Date(fx.range.from), to: new Date(fx.range.to) },
+      cpi,
+    );
+    expect(result.cpi_change_pct).toBeCloseTo(fx.expected.cpi_change_pct_approx, 1);
+    expect(result.real_pct).toBeCloseTo(fx.expected.real_pct_approx, 1);
   });
 });

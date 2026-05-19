@@ -1,0 +1,15 @@
+{
+  "name": "real-returns-1979-1981",
+  "description": "High-inflation period (CPI +27.26% over 2 years), portfolio +29.96% nominal total return. Real total return ≈ +2.12%. Catches deflation sign errors.",
+  "nominal_pct_total": 29.96,
+  "cpi": [
+    { "date": "1979-01-01T00:00:00Z", "index": 204.7 },
+    { "date": "1981-01-01T00:00:00Z", "index": 260.5 }
+  ],
+  "range": { "from": "1979-01-01T00:00:00Z", "to": "1981-01-01T00:00:00Z" },
+  "expected": {
+    "cpi_change_pct_approx": 27.26,
+    "real_pct_approx": 2.12,
+    "_note": "Engine: computeRealReturn(29.96, range, cpi). Hand-check: (1.2996 / 1.2726) − 1 = 0.0212 = 2.12% over 2 years."
+  }
+}

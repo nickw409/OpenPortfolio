@@ -1,6 +1,8 @@
 // Drawdown: peak/trough/recovery on the TR index (cashflow-neutral by
-// construction). Real branch added in the follow-up commit (Task 12).
+// construction). Real branch deflates the TR index by CPI (cpiAt(d) / cpi0)
+// before running the same stats computation.
 
+import { cpiAt } from './cpi';
 import type {
   CpiSeries,
   DrawdownResult,
@@ -64,15 +66,20 @@ function statsFromSeries(idx: ReadonlyArray<IndexPoint>): DrawdownStats {
 
 export function computeDrawdown(
   series: ValuationSeries,
-  // NOTE: `cpi` is accepted now so the API doesn't churn when Task 12
-  // wires the real-deflated drawdown branch. For this task, supplying
-  // cpi has no effect — `real` is always null.
   cpi?: CpiSeries,
 ): DrawdownResult {
-  void cpi; // consumed here so noUnusedParameters is satisfied; Task 12 will use it
   const nominalIdx = series.points.map((p) => ({ date: p.date, value: p.tr_index }));
-  return {
+  const result: DrawdownResult = {
     nominal: statsFromSeries(nominalIdx),
-    real: null, // Task 12 fills this in when cpi is supplied
+    real: null,
   };
+  if (cpi !== undefined && series.points.length > 0) {
+    const cpi0 = cpiAt(cpi, series.points[0]!.date);
+    const realIdx = series.points.map((p) => ({
+      date: p.date,
+      value: p.tr_index / (cpiAt(cpi, p.date) / cpi0),
+    }));
+    result.real = statsFromSeries(realIdx);
+  }
+  return result;
 }
