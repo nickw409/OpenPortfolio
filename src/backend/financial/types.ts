@@ -137,3 +137,108 @@ export interface IncomeSummary {
   // that know the current portfolio value.
   net_cents: Money;
 }
+
+// ─── slice 2: time / range / scope ──────────────────────────────────────
+
+// Inclusive on both ends. `to >= from` required (RangeError otherwise).
+export interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+// Portfolio scope nets cross-account transfers; per-account scope treats
+// transfer_in/transfer_out as deposits/withdrawals for that account's books.
+export type Scope = 'portfolio' | { account_id: number };
+
+// ─── slice 2: price history ─────────────────────────────────────────────
+
+// Sparse — engine forward-carries the last known price across weekends,
+// holidays, and gaps. Throws `price.stale` if a held day has no preceding
+// price within `maxStalenessDays` for the security.
+export interface PricePoint {
+  date: Date;
+  price_cents: Money;
+}
+export type PriceHistory = ReadonlyMap<number, ReadonlyArray<PricePoint>>;
+
+// ─── slice 2: CPI ───────────────────────────────────────────────────────
+
+// Monthly BLS CPI-U release-date / index-value pairs. Engine linearly
+// interpolates between adjacent points; throws `cpi.out_of_range` for any
+// requested date outside [first.date, last.date].
+export interface CpiPoint {
+  date: Date;
+  index: number;
+}
+export type CpiSeries = ReadonlyArray<CpiPoint>;
+
+// ─── slice 2: valuation series ──────────────────────────────────────────
+
+export interface ValuationPoint {
+  date: Date;
+  market_value_cents: Money;
+  cost_basis_cents: Money;
+  external_cashflow_cents: Money;
+  tr_index: number;
+}
+export interface ValuationSeries {
+  points: ReadonlyArray<ValuationPoint>;
+  scope: Scope;
+  range: DateRange;
+}
+
+// ─── slice 2: TWR / MWR / drawdown / real / allocation results ──────────
+
+export interface TwrResult {
+  return_pct: number;            // total period
+  annualized_pct: number | null; // null when range < 365.25 days
+  days: number;
+}
+
+export interface MwrResult {
+  irr_pct: number;                            // annualized
+  iterations: number;
+  method: 'newton' | 'bisection';
+}
+
+export interface DrawdownStats {
+  max_drawdown_pct: number;                    // in [−100, 0]
+  max_drawdown_peak_date: Date;
+  max_drawdown_trough_date: Date;
+  max_drawdown_recovery_date: Date | null;     // null if never recovered
+  current_drawdown_pct: number;                // 0 if at all-time high
+  current_peak_date: Date;
+}
+
+export interface DrawdownResult {
+  nominal: DrawdownStats;
+  real: DrawdownStats | null;                  // null when cpi omitted
+}
+
+export interface RealReturnResult {
+  real_pct: number;
+  cpi_change_pct: number;
+}
+
+export type AllocationDimension = 'asset_class' | 'account' | 'security' | 'tag';
+
+export interface AllocationOptions {
+  dimension: AllocationDimension;
+  securities?: ReadonlyMap<number, { asset_class?: string; symbol?: string | null }>;
+  accounts?: ReadonlyMap<number, { name: string; tax_treatment?: string }>;
+  lots?: ReadonlyArray<Lot>;
+  lotTags?: ReadonlyMap<number, ReadonlyArray<string>>;
+}
+
+export interface AllocationBucket {
+  key: string;
+  market_value_cents: Money;
+  cost_basis_cents: Money;
+  weight_pct: number;
+}
+
+export interface AllocationBreakdown {
+  dimension: AllocationDimension;
+  buckets: ReadonlyArray<AllocationBucket>;
+  total_market_value_cents: Money;
+}

@@ -11,7 +11,14 @@ export type FinancialErrorCode =
   | 'domain.split_without_open_lots'
   | 'unsupported.corporate_action'
   | 'unsupported.mixed_currency'
-  | 'unsupported.mixed_grouping';
+  | 'unsupported.mixed_grouping'
+  | 'price.stale'
+  | 'cpi.out_of_range'
+  | 'irr.bad_initial_state'
+  | 'irr.no_solution'
+  | 'irr.no_convergence'
+  | 'allocation.missing_security'
+  | 'allocation.missing_account';
 
 export class FinancialError extends Error {
   override readonly name = 'FinancialError';
