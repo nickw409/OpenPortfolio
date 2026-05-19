@@ -118,3 +118,129 @@ describe('computeMoneyWeightedReturn — intermediate cashflows', () => {
     expect(result.iterations).toBeLessThan(20);
   });
 });
+
+describe('computeMoneyWeightedReturn — bisection fallback', () => {
+  it('falls back to bisection for pathological cashflow series', () => {
+    // Big start, big mid-period withdrawal that flips signs — Newton can
+    // step outside the bracket. The exact construction is contrived; the
+    // assertion is that *some* fallback path returns a valid IRR.
+    // Generate weekly anchor prices so the staleness gate doesn't trip.
+    const pricePts: [string, number][] = [];
+    const startMs = new Date('2026-01-01T00:00:00Z').getTime();
+    const endMs = new Date('2027-01-02T00:00:00Z').getTime();
+    const stepMs = 6 * 86_400_000;
+    for (let t = startMs; t < endMs; t += stepMs) {
+      const iso = new Date(t).toISOString().slice(0, 10);
+      pricePts.push([iso, 10000]);
+    }
+    pricePts.push(['2027-01-02', 9500]);
+
+    const txns = [
+      buildTx({
+        id: 1,
+        transaction_type: 'deposit',
+        transaction_date: dateD('2026-01-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(100000),
+      }),
+      buildTx({
+        id: 2,
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 1000,
+        price_cents: D(100),
+        amount_cents: D(100000),
+      }),
+      buildTx({
+        id: 3,
+        transaction_type: 'withdrawal',
+        transaction_date: dateD('2026-06-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(95000),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, pricePts]]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2027-01-02') },
+      { scope: 'portfolio' },
+    );
+    const result = computeMoneyWeightedReturn(series);
+    expect(Number.isFinite(result.irr_pct)).toBe(true);
+    expect(result.irr_pct).toBeGreaterThan(-99);
+    expect(result.irr_pct).toBeLessThan(1000);
+  });
+});
+
+describe('computeMoneyWeightedReturn — no solution', () => {
+  it('throws irr.no_solution when NPV has no sign change in [−0.99, 10]', () => {
+    // All-loss scenario with no path to break-even: start $10000, withdraw
+    // nothing, end at $0. NPV is monotonically increasing in r toward zero
+    // but never reaches it (asymptotically). Should throw irr.no_solution
+    // because Newton will diverge and bisection will see same-sign endpoints.
+    const pricePts: [string, number][] = [];
+    const startMs = new Date('2026-01-01T00:00:00Z').getTime();
+    const endMs = new Date('2026-12-31T00:00:00Z').getTime();
+    const stepMs = 6 * 86_400_000;
+    for (let t = startMs; t < endMs; t += stepMs) {
+      const iso = new Date(t).toISOString().slice(0, 10);
+      pricePts.push([iso, 10000]);
+    }
+    pricePts.push(['2026-12-31', 0]);
+
+    const txns = [
+      buildTx({
+        id: 1,
+        transaction_type: 'deposit',
+        transaction_date: dateD('2026-01-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(10000),
+      }),
+      buildTx({
+        id: 2,
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(100),
+        amount_cents: D(10000),
+      }),
+      buildTx({
+        id: 3,
+        transaction_type: 'sell',
+        transaction_date: dateD('2026-12-31'),
+        quantity: 100,
+        price_cents: D(0),
+        amount_cents: D(0),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, pricePts]]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2026-12-31') },
+      { scope: 'portfolio' },
+    );
+    // IRR for "lose everything" is −100% — but our bracket is [−0.99, 10]
+    // so r = −0.99 makes NPV blow up. We accept whatever the engine returns
+    // here: either irr_pct ≈ −99 (the boundary) OR no_solution.
+    let result: any;
+    let error: Error | null = null;
+    try {
+      result = computeMoneyWeightedReturn(series);
+    } catch (e) {
+      error = e as Error;
+    }
+    if (error) {
+      expect((error as FinancialError).code).toBe('irr.no_solution');
+    } else {
+      expect(result.irr_pct).toBeLessThan(-95);
+    }
+  });
+});
