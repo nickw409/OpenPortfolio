@@ -45,8 +45,8 @@ export function computeValuationSeries(
       : allGroups;
 
   // Iterate one day at a time; for each day, snapshot open lots across all
-  // groups and value them at the carried-forward price. TR-index and cashflow
-  // handling land in later tasks — set both to neutral here.
+  // groups and value them at the carried-forward price. External cashflows
+  // are summed per scope; TR-index chains from those daily returns.
   const points: ValuationPoint[] = [];
   for (
     let t = range.from.getTime();
