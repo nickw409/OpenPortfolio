@@ -1,12 +1,23 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 
-const app = new Hono();
+import { createDb } from '@backend/db/client';
+import { createErrorHandler } from '@backend/lib/error-handler';
+import { logger } from '@backend/lib/logger';
+import { VERSION } from '@backend/lib/version';
+import { createHealthRoute } from '@backend/routes/health';
 
-app.get('/api/health', (c) => c.json({ status: 'ok' }));
+const db = createDb();
+const startTimeMs = Date.now();
+
+const app = new Hono();
+app.onError(createErrorHandler(logger));
+app.route('/api/v1/health', createHealthRoute({ db, startTimeMs, version: VERSION }));
 
 const port = Number(process.env.PORT ?? 8787);
+// Loopback only — see docs/specs/2026-05-18-backend-api-design.md §T1.
+const hostname = '127.0.0.1';
 
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`backend listening on http://localhost:${info.port}`);
+serve({ fetch: app.fetch, port, hostname }, (info) => {
+  logger.info({ port: info.port, pid: process.pid, hostname }, 'backend listening');
 });
