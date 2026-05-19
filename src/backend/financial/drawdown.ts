@@ -22,6 +22,7 @@ function statsFromSeries(idx: ReadonlyArray<IndexPoint>): DrawdownStats {
   let maxDdPct = 0;
   let maxDdPeak: Date = runningPeakDate;
   let maxDdTrough: Date = runningPeakDate;
+  let maxDdPeakValue: number = runningPeak;
 
   for (let i = 0; i < idx.length; i++) {
     const p = idx[i]!;
@@ -34,15 +35,15 @@ function statsFromSeries(idx: ReadonlyArray<IndexPoint>): DrawdownStats {
       maxDdPct = ddPct;
       maxDdPeak = runningPeakDate;
       maxDdTrough = p.date;
+      maxDdPeakValue = runningPeak;
     }
   }
 
   // Recovery: smallest date strictly after maxDdTrough where value >= peak's value at maxDdPeak.
-  const peakValue = idx.find((p) => p.date.getTime() === maxDdPeak.getTime())!.value;
   let recoveryDate: Date | null = null;
   for (const p of idx) {
     if (p.date.getTime() <= maxDdTrough.getTime()) continue;
-    if (p.value >= peakValue) {
+    if (p.value >= maxDdPeakValue) {
       recoveryDate = p.date;
       break;
     }
@@ -63,8 +64,12 @@ function statsFromSeries(idx: ReadonlyArray<IndexPoint>): DrawdownStats {
 
 export function computeDrawdown(
   series: ValuationSeries,
-  _cpi?: CpiSeries,
+  // NOTE: `cpi` is accepted now so the API doesn't churn when Task 12
+  // wires the real-deflated drawdown branch. For this task, supplying
+  // cpi has no effect — `real` is always null.
+  cpi?: CpiSeries,
 ): DrawdownResult {
+  void cpi; // consumed here so noUnusedParameters is satisfied; Task 12 will use it
   const nominalIdx = series.points.map((p) => ({ date: p.date, value: p.tr_index }));
   return {
     nominal: statsFromSeries(nominalIdx),
