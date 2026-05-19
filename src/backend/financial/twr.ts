@@ -3,6 +3,12 @@
 
 import type { TwrResult, ValuationSeries } from './types';
 
+// 365.25 is used in two roles, intentionally tied together: (a) the
+// annualization exponent denominator, and (b) the gate that decides
+// whether annualization fires at all. A range of exactly 365 days
+// (one non-leap-year) produces days = 365.0 < 365.25, so annualized_pct
+// is null. Annualizing a sub-year return is a forecasting move we don't
+// make in the engine; callers can do it themselves if they want it.
 const DAYS_PER_YEAR = 365.25;
 const ONE_DAY_MS = 86_400_000;
 

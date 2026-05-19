@@ -245,4 +245,29 @@ describe('computeTimeWeightedReturn — empty series guard', () => {
     // But a manually-empty .points array should throw.
     expect(() => computeTimeWeightedReturn({ ...series, points: [] })).toThrow(RangeError);
   });
+
+  it('single-point series: return_pct = 0, days = 0, annualized_pct = null', () => {
+    // Same-day buy and query: series has exactly one point.
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, [['2026-01-01', 1000]]]]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2026-01-01') },
+      { scope: 'portfolio' },
+    );
+    expect(series.points).toHaveLength(1);
+    const result = computeTimeWeightedReturn(series);
+    expect(result.return_pct).toBe(0);
+    expect(result.days).toBe(0);
+    expect(result.annualized_pct).toBeNull();
+  });
 });
