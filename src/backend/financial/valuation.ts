@@ -4,7 +4,7 @@
 // { market_value, cost_basis, external_cashflow, tr_index }.
 // See docs/specs/2026-05-19-financial-engine-slice-2.md.
 
-import { add, multiplyByRatio, ofCents, ZERO, type Money } from '@shared/money';
+import { add, multiplyByRatio, negate, ZERO, type Money } from '@shared/money';
 
 import { computeLots } from './lots';
 import type {
@@ -82,9 +82,14 @@ export function computeValuationSeries(
     let trIndex = 1.0;
     if (points.length > 0) {
       const prev = points[points.length - 1]!;
+      // Start-of-day cashflow convention: today's deposit is treated as
+      // arriving at start of day and earns the day's return. The capital
+      // base is V_open + CF; daily_return = V_close / (V_open + CF) − 1.
       const vOpen = Number(prev.market_value_cents);
-      if (vOpen > 0) {
-        const dailyReturn = (Number(marketValue) - Number(cashflow)) / vOpen - 1;
+      const cfNum = Number(cashflow);
+      const base = vOpen + cfNum;
+      if (base > 0) {
+        const dailyReturn = Number(marketValue) / base - 1;
         trIndex = prev.tr_index * (1 + dailyReturn);
       } else {
         trIndex = prev.tr_index; // pre-funding day — no return to apply
@@ -142,10 +147,10 @@ function externalCashflowOnDay(
 
     const kind = tx.transaction_type;
     if (kind === 'deposit') sum = add(sum, tx.amount_cents);
-    else if (kind === 'withdrawal') sum = add(sum, ofCents(-Number(tx.amount_cents)));
+    else if (kind === 'withdrawal') sum = add(sum, negate(tx.amount_cents));
     else if (accountId !== null && kind === 'transfer_in') sum = add(sum, tx.amount_cents);
     else if (accountId !== null && kind === 'transfer_out')
-      sum = add(sum, ofCents(-Number(tx.amount_cents)));
+      sum = add(sum, negate(tx.amount_cents));
   }
   return sum;
 }

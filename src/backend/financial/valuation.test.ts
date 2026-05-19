@@ -281,6 +281,39 @@ describe('computeValuationSeries — external cashflows', () => {
     expect(series.points[0]!.market_value_cents).toBe(D(500)); // 50 × $10, not 100 × $10
     expect(series.points[0]!.cost_basis_cents).toBe(D(500));
   });
+
+  it('portfolio scope: deposits from multiple accounts all count toward total cashflow', () => {
+    const txns = [
+      buildTx({
+        id: 1,
+        transaction_type: 'deposit',
+        account_id: 1,
+        transaction_date: dateD('2026-01-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(300),
+      }),
+      buildTx({
+        id: 2,
+        transaction_type: 'deposit',
+        account_id: 2,
+        transaction_date: dateD('2026-01-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(700),
+      }),
+    ];
+    const series = computeValuationSeries(
+      txns,
+      buildPriceHistory([]),
+      { from: dateD('2026-01-01'), to: dateD('2026-01-01') },
+      { scope: 'portfolio' },
+    );
+    // Portfolio-wide sum: $300 + $700 = $1000
+    expect(series.points[0]!.external_cashflow_cents).toBe(D(1000));
+  });
 });
 
 describe('computeValuationSeries — TR index', () => {
@@ -334,7 +367,8 @@ describe('computeValuationSeries — TR index', () => {
     // Day 1: hold $1000 worth at close.
     // Day 2: deposit $1000 at start of day; close at $2200.
     // Without stripping: return = 2200/1000 - 1 = 120% (wrong, includes deposit).
-    // With stripping: return = (2200 - 1000)/1000 - 1 = 20% (correct).
+    // With start-of-day: base = V_open + CF = 1000 + 1000 = 2000;
+    //   return = 2200/2000 - 1 = 10% (correct — deposit earns the day's return).
     const txns = [
       buildTx({
         id: 1,
@@ -373,9 +407,10 @@ describe('computeValuationSeries — TR index', () => {
     );
     // Day 1: 100 × $10 = $1000. tr_index = 1.0.
     // Day 2: 200 × $11 = $2200, deposit_cf = $1000.
-    //   daily_return = (2200 − 1000) / 1000 − 1 = 0.20 = +20%
-    //   tr_index[1] = 1.0 × 1.20 = 1.20
-    expect(series.points[1]!.tr_index).toBeCloseTo(1.20, 10);
+    //   base = V_open + CF = 1000 + 1000 = 2000
+    //   daily_return = 2200 / 2000 − 1 = +10%
+    //   tr_index[1] = 1.0 × 1.10 = 1.10
+    expect(series.points[1]!.tr_index).toBeCloseTo(1.10, 10);
     expect(series.points[1]!.external_cashflow_cents).toBe(D(1000));
   });
 
