@@ -22,7 +22,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "worktree": "bash scripts/worktree-add.sh",
+    "worktree-rm": "bash scripts/worktree-rm.sh"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

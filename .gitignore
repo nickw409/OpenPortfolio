@@ -29,3 +29,11 @@ npm-debug.log*
 
 # Claude Code per-machine settings (project-level settings.json may be committed; .local is private)
 .claude/settings.local.json
+
+# Worktrees live inside the repo at worktrees/<slug>/ and are managed by
+# `git worktree`, not tracked as content.
+worktrees/
+
+# Python bytecode cache (helpers in scripts/ may produce this when imported
+# or syntax-checked).
+__pycache__/
