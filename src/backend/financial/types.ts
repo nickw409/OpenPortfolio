@@ -179,6 +179,9 @@ export interface ValuationPoint {
   market_value_cents: Money;
   cost_basis_cents: Money;
   external_cashflow_cents: Money;
+  // Total-return index starting at 1.0 on the series's first point and
+  // chained day-by-day from daily returns net of external cashflows.
+  // Cashflow-neutral by construction — TWR is (tr_index[last] / tr_index[first]) − 1.
   tr_index: number;
 }
 export interface ValuationSeries {
@@ -206,7 +209,7 @@ export interface DrawdownStats {
   max_drawdown_peak_date: Date;
   max_drawdown_trough_date: Date;
   max_drawdown_recovery_date: Date | null;     // null if never recovered
-  current_drawdown_pct: number;                // 0 if at all-time high
+  current_drawdown_pct: number;                // in [−100, 0]; 0 if at all-time high
   current_peak_date: Date;
 }
 
@@ -222,6 +225,14 @@ export interface RealReturnResult {
 
 export type AllocationDimension = 'asset_class' | 'account' | 'security' | 'tag';
 
+// Lookup data is supplied by the caller (engine does no I/O). The fields
+// required depend on the chosen `dimension`:
+//   - 'asset_class' → `securities` (each entry must have asset_class)
+//   - 'account'     → `accounts`
+//   - 'security'    → `securities` (symbol used; falls back to "security:<id>")
+//   - 'tag'         → `lots` and `lotTags`
+// Missing entries throw FinancialError('allocation.missing_security') or
+// .missing_account at runtime.
 export interface AllocationOptions {
   dimension: AllocationDimension;
   securities?: ReadonlyMap<number, { asset_class?: string; symbol?: string | null }>;
