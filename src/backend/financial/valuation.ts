@@ -6,6 +6,7 @@
 
 import { add, multiplyByRatio, negate, ZERO, type Money } from '@shared/money';
 
+import { FinancialError } from './errors';
 import { computeLots } from './lots';
 import type {
   DateRange,
@@ -18,11 +19,13 @@ import type {
 
 export interface ComputeValuationSeriesOptions {
   scope: Scope;
-  // Not yet implemented — Task 6 adds the staleness check.
+  // Max age (in days) of a forward-carried price before computeValuationSeries
+  // throws price.stale for any day a security was held. Defaults to 7.
   maxStalenessDays?: number;
 }
 
 const ONE_DAY_MS = 86_400_000;
+const DEFAULT_MAX_STALENESS_DAYS = 7;
 
 export function computeValuationSeries(
   txns: ReadonlyArray<Tx>,
@@ -47,6 +50,7 @@ export function computeValuationSeries(
   // Iterate one day at a time; for each day, snapshot open lots across all
   // groups and value them at the carried-forward price. External cashflows
   // are summed per scope; TR-index chains from those daily returns.
+  const maxStale = opts.maxStalenessDays ?? DEFAULT_MAX_STALENESS_DAYS;
   const points: ValuationPoint[] = [];
   for (
     let t = range.from.getTime();
@@ -63,16 +67,12 @@ export function computeValuationSeries(
     let costBasis: Money = ZERO;
     for (const group of groupsForScope) {
       const { openLots } = computeLots(group, { method: 'fifo', asOf: day });
-      // Cost basis sums all open lots regardless of price availability —
-      // it's "what you paid" and doesn't depend on a live market quote.
-      // Market value sums only lots with a recoverable price. Task 6
-      // promotes the null-price case to a `price.stale` throw, eliminating
-      // the asymmetry in production.
+      // Cost basis sums all open lots; market value sums qty × carried-
+      // forward price (carryForwardPrice throws price.stale if a held lot
+      // has no recoverable price within maxStalenessDays).
       for (const lot of openLots) {
-        const price = lookupCarryForwardPrice(prices, lot.security_id, day);
-        if (price !== null) {
-          marketValue = add(marketValue, multiplyByRatio(price, lot.quantity));
-        }
+        const price = carryForwardPrice(prices, lot.security_id, day, maxStale);
+        marketValue = add(marketValue, multiplyByRatio(price, lot.quantity));
         costBasis = add(costBasis, lot.cost_basis_cents);
       }
     }
@@ -159,18 +159,25 @@ function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-// Returns the most recent price at or before `date` for `securityId`,
-// or null if no such price exists in the series. Forward-only (never
-// reaches backward in time). Staleness check is applied separately
-// in Task 6.
-function lookupCarryForwardPrice(
+// Returns the most recent price at or before `date` for `securityId`.
+// Throws FinancialError('price.stale', ...) if no such price exists or if
+// the most recent price is older than `maxStalenessDays`.
+function carryForwardPrice(
   prices: PriceHistory,
   securityId: number,
   date: Date,
-): Money | null {
+  maxStalenessDays: number,
+): Money {
   const series = prices.get(securityId);
-  if (!series || series.length === 0) return null;
   const t = date.getTime();
+  if (!series || series.length === 0) {
+    throw new FinancialError('price.stale', 'no price series for security', {
+      security_id: securityId,
+      requested_date: date,
+      last_price_date: null,
+      max_staleness_days: maxStalenessDays,
+    });
+  }
   // Binary search for the largest index with date <= t.
   let lo = 0;
   let hi = series.length;
@@ -180,6 +187,27 @@ function lookupCarryForwardPrice(
     else hi = mid;
   }
   const idx = lo - 1;
-  if (idx < 0) return null;
-  return series[idx]!.price_cents;
+  if (idx < 0) {
+    throw new FinancialError('price.stale', 'no price on or before requested date', {
+      security_id: securityId,
+      requested_date: date,
+      last_price_date: null,
+      max_staleness_days: maxStalenessDays,
+    });
+  }
+  const last = series[idx]!;
+  const ageDays = (t - last.date.getTime()) / ONE_DAY_MS;
+  if (ageDays > maxStalenessDays) {
+    throw new FinancialError(
+      'price.stale',
+      'last price is older than maxStalenessDays',
+      {
+        security_id: securityId,
+        requested_date: date,
+        last_price_date: last.date,
+        max_staleness_days: maxStalenessDays,
+      },
+    );
+  }
+  return last.price_cents;
 }

@@ -1,5 +1,6 @@
 import { ofCents } from '@shared/money';
 
+import { FinancialError } from './errors';
 import { computeValuationSeries } from './valuation';
 import { buildPriceHistory, buildTx, D, dateD, resetTxIds } from './test-helpers';
 
@@ -443,5 +444,119 @@ describe('computeValuationSeries — TR index', () => {
       { scope: 'portfolio' },
     );
     expect(series.points.map((p) => p.tr_index)).toEqual([1.0, 1.0, 1.0, expect.closeTo(1.10, 10)]);
+  });
+});
+
+describe('computeValuationSeries — price staleness', () => {
+  it('throws price.stale when a held security has no price within maxStalenessDays', () => {
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    // Only one price on 2026-01-01; query a day 30 days later (well past 7-day default).
+    const prices = buildPriceHistory([[1, [['2026-01-01', 1000]]]]);
+    try {
+      computeValuationSeries(
+        txns,
+        prices,
+        { from: dateD('2026-01-15'), to: dateD('2026-01-15') },
+        { scope: 'portfolio' },
+      );
+      throw new Error('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(FinancialError);
+      expect((e as FinancialError).code).toBe('price.stale');
+      expect((e as FinancialError).context.security_id).toBe(1);
+    }
+  });
+
+  it('throws price.stale when a held security has no preceding price at all', () => {
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    // Price series has no points before the query window.
+    const prices = buildPriceHistory([[1, [['2026-02-01', 1000]]]]);
+    expect(() =>
+      computeValuationSeries(
+        txns,
+        prices,
+        { from: dateD('2026-01-05'), to: dateD('2026-01-05') },
+        { scope: 'portfolio' },
+      ),
+    ).toThrow(FinancialError);
+  });
+
+  it('respects custom maxStalenessDays', () => {
+    const txns = [
+      buildTx({
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, [['2026-01-01', 1000]]]]);
+    // 3 days later, 7-day window — fine.
+    expect(() =>
+      computeValuationSeries(
+        txns,
+        prices,
+        { from: dateD('2026-01-04'), to: dateD('2026-01-04') },
+        { scope: 'portfolio', maxStalenessDays: 7 },
+      ),
+    ).not.toThrow();
+    // 3 days later, 2-day window — too stale.
+    expect(() =>
+      computeValuationSeries(
+        txns,
+        prices,
+        { from: dateD('2026-01-04'), to: dateD('2026-01-04') },
+        { scope: 'portfolio', maxStalenessDays: 2 },
+      ),
+    ).toThrow(FinancialError);
+  });
+
+  it('does NOT throw when the security is no longer held on stale days', () => {
+    // Buy then sell-out: after the sell, no open lot, no price needed.
+    const txns = [
+      buildTx({
+        id: 1,
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(10),
+        amount_cents: D(1000),
+      }),
+      buildTx({
+        id: 2,
+        transaction_type: 'sell',
+        transaction_date: dateD('2026-01-02'),
+        quantity: 100,
+        price_cents: D(11),
+        amount_cents: D(1100),
+      }),
+    ];
+    const prices = buildPriceHistory([[1, [['2026-01-01', 1000], ['2026-01-02', 1100]]]]);
+    // Day 30 is far past the staleness window, but no security is held.
+    expect(() =>
+      computeValuationSeries(
+        txns,
+        prices,
+        { from: dateD('2026-01-30'), to: dateD('2026-01-30') },
+        { scope: 'portfolio', maxStalenessDays: 7 },
+      ),
+    ).not.toThrow();
   });
 });
