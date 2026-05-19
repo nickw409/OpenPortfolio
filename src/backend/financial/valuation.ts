@@ -18,6 +18,7 @@ import type {
 
 export interface ComputeValuationSeriesOptions {
   scope: Scope;
+  // Not yet implemented — Task 6 adds the staleness check.
   maxStalenessDays?: number;
 }
 
@@ -32,6 +33,13 @@ export function computeValuationSeries(
   if (range.to.getTime() < range.from.getTime()) {
     throw new RangeError('range.to must be >= range.from');
   }
+
+  // NOTE: `opts.scope` is currently passed through to the returned
+  // ValuationSeries.scope but does not yet filter transactions to a
+  // single account. Task 5 wires scope-aware filtering: account scope
+  // restricts txns to that account_id and counts transfer_in/out as
+  // external cashflows; portfolio scope nets cross-account transfers.
+  // For now, every invocation behaves as if scope === 'portfolio'.
 
   // Group transactions by (account_id, security_id) so each call to
   // computeLots sees a uniform group. computeLots validates uniformity and
@@ -49,10 +57,19 @@ export function computeValuationSeries(
   ) {
     const day = new Date(t);
 
+    // TODO(perf): computeLots re-sorts each group's transactions on every
+    // day. For long histories with many securities this is gratuitous —
+    // pre-sort groups once outside the day loop and memoize open-lot
+    // snapshots between days where no transaction changes the lot set.
     let marketValue: Money = ZERO;
     let costBasis: Money = ZERO;
     for (const group of groups) {
       const { openLots } = computeLots(group, { method: 'fifo', asOf: day });
+      // Cost basis sums all open lots regardless of price availability —
+      // it's "what you paid" and doesn't depend on a live market quote.
+      // Market value sums only lots with a recoverable price. Task 6
+      // promotes the null-price case to a `price.stale` throw, eliminating
+      // the asymmetry in production.
       for (const lot of openLots) {
         const price = lookupCarryForwardPrice(prices, lot.security_id, day);
         if (price !== null) {
