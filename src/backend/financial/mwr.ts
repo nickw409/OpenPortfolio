@@ -78,9 +78,16 @@ function npvPrime(r: number, end: number, flows: Cashflow[], years: number): num
   return d;
 }
 
+type BisectResult =
+  | { kind: 'converged'; r: number; iterations: number }
+  | { kind: 'no_sign_change' }
+  | { kind: 'no_convergence'; last_estimate: number; iterations: number };
+
 // Bisection on [−0.99, 10.0] — same bracket bounds as Newton's clamp above.
-// Returns null when the bracket endpoints have the same NPV sign (genuinely
-// unsolvable in this bracket) or when NPV is non-finite at an endpoint.
+// Returns no_sign_change when the bracket endpoints have the same NPV sign
+// (genuinely unsolvable in this bracket) or when NPV is non-finite at an
+// endpoint. Returns no_convergence when 100 iterations exhaust without
+// hitting tolerance (numerically intractable but a root may exist).
 // 100 iterations gives ~log2(10.99/1e-10) ≈ 37 iterations to reach REL_R_TOL,
 // so the cap is generous; convergence is always by tolerance, not by count.
 function bisect(
@@ -88,20 +95,21 @@ function bisect(
   end: number,
   flows: Cashflow[],
   years: number,
-): { r: number; iterations: number } | null {
+): BisectResult {
   let lo = -0.99;
   let hi = 10.0;
   let fLo = npv(lo, start, end, flows, years);
   let fHi = npv(hi, start, end, flows, years);
-  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return null;
-  if (fLo === 0) return { r: lo, iterations: 0 };
-  if (fHi === 0) return { r: hi, iterations: 0 };
-  if (Math.sign(fLo) === Math.sign(fHi)) return null; // no sign change
+  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return { kind: 'no_sign_change' };
+  if (fLo === 0) return { kind: 'converged', r: lo, iterations: 0 };
+  if (fHi === 0) return { kind: 'converged', r: hi, iterations: 0 };
+  if (Math.sign(fLo) === Math.sign(fHi)) return { kind: 'no_sign_change' };
+  let mid = (lo + hi) / 2;
   for (let i = 0; i < 100; i++) {
-    const mid = (lo + hi) / 2;
+    mid = (lo + hi) / 2;
     const fMid = npv(mid, start, end, flows, years);
     if (Math.abs(fMid) < ABS_NPV_TOL_CENTS || (hi - lo) < REL_R_TOL) {
-      return { r: mid, iterations: i + 1 };
+      return { kind: 'converged', r: mid, iterations: i + 1 };
     }
     if (Math.sign(fMid) === Math.sign(fLo)) {
       lo = mid;
@@ -111,7 +119,7 @@ function bisect(
       fHi = fMid;
     }
   }
-  return null;
+  return { kind: 'no_convergence', last_estimate: mid, iterations: 100 };
 }
 
 export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
@@ -156,12 +164,23 @@ export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
 
   // Newton exhausted; try bisection.
   const bis = bisect(start_value_cents, end_value_cents, flows, totalYears);
-  if (bis === null) {
+  if (bis.kind === 'no_sign_change') {
     throw new FinancialError('irr.no_solution', 'NPV has no sign change in [−0.99, 10]', {
       start_value_cents,
       end_value_cents,
-      cashflows: flows,
+      cashflows_count: flows.length,
     });
+  }
+  if (bis.kind === 'no_convergence') {
+    throw new FinancialError(
+      'irr.no_convergence',
+      'Newton-Raphson and bisection both exhausted 100 iterations',
+      {
+        last_estimate: bis.last_estimate,
+        newton_iterations: iter,
+        bisection_iterations: bis.iterations,
+      },
+    );
   }
   return { irr_pct: bis.r * 100, iterations: iter + bis.iterations, method: 'bisection' };
 }

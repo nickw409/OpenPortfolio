@@ -174,6 +174,7 @@ describe('computeMoneyWeightedReturn — bisection fallback', () => {
     expect(Number.isFinite(result.irr_pct)).toBe(true);
     expect(result.irr_pct).toBeGreaterThan(-99);
     expect(result.irr_pct).toBeLessThan(1000);
+    expect(result.method).toBe('bisection');
   });
 });
 
