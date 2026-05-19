@@ -6,7 +6,7 @@
 
 import { ofCents, ofDollars, ZERO, type Money } from '@shared/money';
 
-import type { Tx, TxType } from './types';
+import type { CpiPoint, PriceHistory, PricePoint, Tx, TxType } from './types';
 
 export interface TxOverrides {
   id?: number;
@@ -45,3 +45,31 @@ export function buildTx(overrides: TxOverrides = {}): Tx {
 export const D = (dollars: number): Money => ofDollars(dollars);
 export const C = (cents: number): Money => ofCents(cents);
 export const Z: Money = ZERO;
+
+// Builds a UTC date from "YYYY-MM-DD" — short form used by slice 2 tests
+// where the exact time-of-day is irrelevant.
+export function dateD(iso: string): Date {
+  return new Date(`${iso}T00:00:00Z`);
+}
+
+// Build a PriceHistory map from an inline literal. Each entry is
+// [securityId, [[isoDate, cents], ...]]. Dates are normalized via dateD.
+export function buildPriceHistory(
+  entries: ReadonlyArray<readonly [number, ReadonlyArray<readonly [string, number]>]>,
+): PriceHistory {
+  const out = new Map<number, ReadonlyArray<PricePoint>>();
+  for (const [sec, pts] of entries) {
+    out.set(
+      sec,
+      pts.map(([d, c]) => ({ date: dateD(d), price_cents: C(c) })),
+    );
+  }
+  return out;
+}
+
+// Build a CpiSeries from inline literals: [[isoDate, indexValue], ...].
+export function buildCpiSeries(
+  entries: ReadonlyArray<readonly [string, number]>,
+): ReadonlyArray<CpiPoint> {
+  return entries.map(([d, idx]) => ({ date: dateD(d), index: idx }));
+}
