@@ -32,39 +32,55 @@ Deferred to dependent workstreams:
 
 ## 2. Backend API (Hono)
 
-**Status: Not started.**
+**Status: Complete.** Backend skeleton, boot orchestration, error envelope, structured logging, request/response middleware, health, and shutdown all landed against spec T1–T6 ([specs/2026-05-18-backend-api-design.md](specs/2026-05-18-backend-api-design.md)). Per-feature route groups land with the consuming workstreams (W3/W5/W7); file-sink rotation and dev CORS land with W11 and W4 respectively — these are spec-deferred, not WS2 work.
 
-Hono-based HTTP server running as a separate Node process. The only writer to the SQLite database. Designed so the Electron renderer talks to it over IPC in production and over HTTP in development.
+Landed:
+- [x] Hono app skeleton with single-process Node entry point ([src/backend/index.ts](../src/backend/index.ts)); loopback-only on `127.0.0.1` with configurable port (T1)
+- [x] Error-handling middleware: namespaced `{ code, message, context }` envelope ([src/shared/errors.ts](../src/shared/errors.ts), [src/backend/lib/error-handler.ts](../src/backend/lib/error-handler.ts)) (T2)
+- [x] Shared Zod schema directory (`src/shared/schemas/`) with `MoneySchema` / `NonNegativeMoneySchema` (integer-cents enforced at the boundary; floats fail validation) (T3)
+- [x] Migration-on-boot orchestration: open DB → version check → pre-migration backup → migrate → ready ([src/backend/lib/boot.ts](../src/backend/lib/boot.ts)); health reports `migrating` during the window (T4)
+- [x] Structured logging via `pino` with pretty transport in dev ([src/backend/lib/logger.ts](../src/backend/lib/logger.ts)); level gated by `OPENPORTFOLIO_LOG_LEVEL` (T5)
+- [x] Health endpoint at `GET /api/v1/health` returning `{ status, version, db_version, uptime_ms }` ([src/backend/routes/health.ts](../src/backend/routes/health.ts)) (T6)
+- [x] Graceful shutdown: SIGINT/SIGTERM sets draining flag, new requests get `503 service.shutting_down`, in-flight requests drained up to 10s, SQLite closed cleanly ([src/backend/lib/shutdown.ts](../src/backend/lib/shutdown.ts)) (T6)
+- [x] Transport decision resolved: HTTP on `127.0.0.1` ephemeral port (T1 §A)
+- [x] Request/response logging middleware ([src/backend/lib/request-logger.ts](../src/backend/lib/request-logger.ts)): info-level per-request line, debug-level body capture, `/health` skip, mounted before `bootGate` so 503 paths log (T5)
 
-Remaining:
-- [ ] Hono app skeleton with route grouping (`/api/v1/accounts`, `/transactions`, `/positions`, `/returns`, etc.)
-- [ ] Zod validation at every route boundary; reject malformed requests with structured error responses
-- [ ] Error-handling middleware: errors propagate as JSON with `code`, `message`, `context`; never empty `catch`
-- [ ] Request/response logging at debug level (local only, never sent off-device)
-- [ ] Health endpoint for the Electron main process to detect backend liveness
-- [ ] Graceful shutdown handling: drain in-flight requests, close DB cleanly
-- [ ] Decision: HTTP-only vs Unix domain socket / named pipe for Electron→backend communication (HTTP simpler; socket marginally more secure since nothing else on the machine can reach it)
+Deferred to dependent workstreams (spec-aligned, not WS2 backlog):
+- Per-feature route groups (`/accounts`, `/transactions`, `/positions`, `/returns`) — land alongside W3/W5/W7 as their UIs need them
+- File-sink log rotation (`pino-roll` to `<userData>/logs/`) — needs Electron's `userData` (W11)
+- Dev-mode CORS allowlist for the Vite dev origin — wired with W4 frontend bootstrap
+- Optional loopback auth token — deferred to W11 review per spec open questions
 
 ---
 
 ## 3. Financial calculation engine
 
-**Status: Not started.**
+**Status: In progress.** Slice 1 (lots, basis, realized/unrealized, dividends) complete. Slice 2 (returns, drawdown, real returns, allocation) not yet started — separate spec pending.
 
-The core business logic. Pure functions over `Money` values; no side effects, no I/O, no AI involvement. This is the audited deterministic code that AI features will call into.
+The core business logic. Pure functions over `Money` values; no side effects, no I/O, no AI involvement. This is the audited deterministic code that AI features will call into. Engine lives at [src/backend/financial/](../src/backend/financial/); spec for slice 1 in [specs/2026-05-18-financial-engine-slice-1.md](specs/2026-05-18-financial-engine-slice-1.md).
 
-Remaining:
-- [ ] Position tracking: compute current holdings from transaction history (buys, sells, splits, dividends, fees)
-- [ ] Cost basis methods: FIFO (default), LIFO, specific lot — user-configurable per account
+Landed (slice 1):
+- [x] Pure-function API surface over typed records, no DB/I/O dependencies (F1) — five top-level functions: `computeLots`, `computePosition`, `computePortfolio`, `computeRealizedGainsLoss`, `computeIncomeStream`
+- [x] Position tracking from transaction history with on-demand lot reconstruction — no materialized lot table (F2)
+- [x] Cost basis methods: FIFO (default), LIFO, specific-lot — `accounts.cost_basis_method` column added (migration `0001_boring_warbird.sql`) with per-call override accepting `LotSelectionMap` (F4, F6)
+- [x] Split handling: `split` transactions interpret `quantity` as ratio; engine applies to prior lots' shares and per-share basis
+- [x] `positions` SQL view dropped — engine is the single source of truth for holdings (F3)
+- [x] Realized vs unrealized gain/loss via `computeRealizedGainsLoss` over the closed-lot stream
+- [x] Dividend / interest / fee tracking and TTM yield via `computeIncomeStream` (caller injects current market value)
+- [x] Typed `FinancialError` with stable codes (`unsupported.corporate_action`, `unsupported.mixed_currency`, sell-exceeds-holdings, etc.); no silent failures
+- [x] Quantity precision: float `quantity` kept; engine never round-trips through float dollars; round-half-to-even at Money conversions (F5)
+- [x] Property-based test asserting cents-of-drift bound under random transaction histories ([lots.property.test.ts](../src/backend/financial/lots.property.test.ts))
+- [x] Golden-dataset fixtures under [tests/fixtures/financial/](../tests/fixtures/financial/): `simple-buy-sell`, `split-mid-history`, `multi-account`, `dividend-stream`, `realized-loss`
+
+Remaining (slice 2, separate spec to come):
 - [ ] Time-weighted return (TWR) calculation
 - [ ] Money-weighted return (MWR / IRR) calculation
 - [ ] Drawdown calculation: max drawdown, current drawdown, drawdown duration, time-to-recovery
 - [ ] **Real returns net of CPI**: load CPI series from `cpi_data` table; deflate nominal returns to constant-dollar real returns; this is the default display surface
 - [ ] Allocation calculations: by asset class, by account, by security, by custom tag
-- [ ] Realized vs unrealized gain/loss
-- [ ] Dividend tracking and yield calculation
-- [ ] Test coverage target: 95%+. Property-based tests where applicable (e.g., return calculations should be invariant to currency unit scaling)
-- [ ] Golden-dataset tests: a hand-computed portfolio with known TWR/MWR/drawdown values; calculations must match to within rounding
+- [ ] Golden-dataset fixtures extended with hand-computed TWR/MWR/drawdown values
+- [ ] `scripts/regen-financial-fixtures.ts` typing-convenience regen helper (F7)
+- [ ] Coverage thresholds enforced in CI (target: 95%+ on `src/backend/financial/`) — lands with W12 test infrastructure
 
 ---
 
