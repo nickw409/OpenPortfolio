@@ -27,8 +27,9 @@ export function cpiAt(cpi: CpiSeries, date: Date): number {
       },
     );
   }
-  // Binary search for the segment that brackets t. CPI series is monthly
-  // — typically dozens to hundreds of points — so linear scan is also fine.
+  // Binary search for the segment that brackets t. The series is small
+  // enough that a linear scan would also be fast; binary search is used
+  // here for clarity.
   let lo = 0;
   let hi = cpi.length - 1;
   while (lo + 1 < hi) {
@@ -57,6 +58,13 @@ export function computeRealReturn(
   }
   const cpiStart = cpiAt(cpi, range.from);
   const cpiEnd = cpiAt(cpi, range.to);
+  if (cpiStart <= 0) {
+    throw new FinancialError(
+      'cpi.out_of_range',
+      'CPI index at range start is not positive; cannot deflate',
+      { requested_date: range.from, cpi_index: cpiStart },
+    );
+  }
   const cpiChange = cpiEnd / cpiStart - 1;
   const nominal = nominal_pct / 100;
   const real = (1 + nominal) / (1 + cpiChange) - 1;

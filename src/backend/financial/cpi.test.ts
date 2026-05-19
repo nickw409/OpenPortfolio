@@ -31,7 +31,13 @@ describe('cpiAt — out of range', () => {
       ['2026-01-01', 300.0],
       ['2026-02-01', 303.0],
     ]);
-    expect(() => cpiAt(cpi, dateD('2025-12-31'))).toThrow(FinancialError);
+    try {
+      cpiAt(cpi, dateD('2025-12-31'));
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(FinancialError);
+      expect((e as FinancialError).code).toBe('cpi.out_of_range');
+    }
   });
 
   it('throws cpi.out_of_range above last release', () => {
@@ -49,7 +55,13 @@ describe('cpiAt — out of range', () => {
   });
 
   it('throws on empty cpi series', () => {
-    expect(() => cpiAt(buildCpiSeries([]), dateD('2026-01-01'))).toThrow(FinancialError);
+    try {
+      cpiAt(buildCpiSeries([]), dateD('2026-01-01'));
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(FinancialError);
+      expect((e as FinancialError).code).toBe('cpi.out_of_range');
+    }
   });
 });
 
@@ -91,5 +103,33 @@ describe('computeRealReturn — period-boundary deflation', () => {
     expect(() =>
       computeRealReturn(5, { from: dateD('2027-01-01'), to: dateD('2026-01-01') }, cpi),
     ).toThrow(RangeError);
+  });
+
+  it('zero-length period (from === to): real == nominal exactly', () => {
+    const cpi = buildCpiSeries([
+      ['2026-01-01', 300.0],
+      ['2027-01-01', 310.0],
+    ]);
+    const result = computeRealReturn(
+      5.0,
+      { from: dateD('2026-06-01'), to: dateD('2026-06-01') },
+      cpi,
+    );
+    expect(result.real_pct).toBeCloseTo(5.0, 10);
+    expect(result.cpi_change_pct).toBeCloseTo(0, 10);
+  });
+
+  it('throws cpi.out_of_range when CPI index at range start is zero', () => {
+    const cpi = buildCpiSeries([
+      ['2026-01-01', 0],
+      ['2027-01-01', 310.0],
+    ]);
+    try {
+      computeRealReturn(5, { from: dateD('2026-01-01'), to: dateD('2027-01-01') }, cpi);
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(FinancialError);
+      expect((e as FinancialError).code).toBe('cpi.out_of_range');
+    }
   });
 });
