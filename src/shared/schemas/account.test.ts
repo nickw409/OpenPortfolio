@@ -21,9 +21,19 @@ describe('AccountSchema', () => {
     expect(AccountSchema.safeParse({ ...valid, broker: null }).success).toBe(true);
   });
 
-  it('rejects a missing required field', () => {
-    const { name: _name, ...rest } = valid;
-    expect(AccountSchema.safeParse(rest).success).toBe(false);
+  const requiredFields = [
+    'id',
+    'name',
+    'taxTreatment',
+    'costBasisMethod',
+    'currencyCode',
+    'createdAt',
+  ] as const;
+
+  it.each(requiredFields)('rejects when %s is missing', (field) => {
+    const partial = { ...valid };
+    delete (partial as Record<string, unknown>)[field];
+    expect(AccountSchema.safeParse(partial).success).toBe(false);
   });
 
   it('rejects an unknown tax treatment', () => {
