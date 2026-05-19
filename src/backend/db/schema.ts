@@ -1,11 +1,9 @@
-import { sql } from 'drizzle-orm';
 import {
   index,
   integer,
   primaryKey,
   real,
   sqliteTable,
-  sqliteView,
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
@@ -20,6 +18,8 @@ export const accounts = sqliteTable('accounts', {
   broker: text('broker'),
   // 'taxable' | 'tax_deferred' | 'tax_free' — constrained by app code, not SQLite CHECK.
   tax_treatment: text('tax_treatment').notNull(),
+  // 'fifo' | 'lifo' | 'specific' — constrained by app code (see src/backend/financial/types.ts).
+  cost_basis_method: text('cost_basis_method').notNull().default('fifo'),
   currency_code: text('currency_code').notNull().default('USD'),
   ...timestamps,
 });
@@ -41,10 +41,7 @@ export const securities = sqliteTable(
     ...timestamps,
   },
   (t) => ({
-    symbolExchangeUnique: uniqueIndex('securities_symbol_exchange_unique').on(
-      t.symbol,
-      t.exchange,
-    ),
+    symbolExchangeUnique: uniqueIndex('securities_symbol_exchange_unique').on(t.symbol, t.exchange),
   }),
 );
 
@@ -187,39 +184,8 @@ export const transaction_tags = sqliteTable(
   }),
 );
 
-// ─── positions (view; derived from transactions) ────────────────────────
-//
-// Per spec S2: positions are always derived. The view sums signed quantity
-// and signed amount across non-deleted transactions, grouped by
-// (account_id, security_id). Buys/transfers_in/splits contribute positively;
-// sells/transfers_out contribute negatively.
-
-export const positions = sqliteView('positions').as((qb) =>
-  qb
-    .select({
-      account_id: transactions.account_id,
-      security_id: transactions.security_id,
-      quantity: sql<number>`SUM(
-        CASE ${transactions.transaction_type}
-          WHEN 'buy' THEN ${transactions.quantity}
-          WHEN 'transfer_in' THEN ${transactions.quantity}
-          WHEN 'split' THEN ${transactions.quantity}
-          WHEN 'sell' THEN -${transactions.quantity}
-          WHEN 'transfer_out' THEN -${transactions.quantity}
-          ELSE 0
-        END
-      )`.as('quantity'),
-      cost_basis_cents: sql<number>`SUM(
-        CASE ${transactions.transaction_type}
-          WHEN 'buy' THEN ${transactions.amount_cents}
-          WHEN 'transfer_in' THEN ${transactions.amount_cents}
-          WHEN 'sell' THEN -${transactions.amount_cents}
-          WHEN 'transfer_out' THEN -${transactions.amount_cents}
-          ELSE 0
-        END
-      )`.as('cost_basis_cents'),
-    })
-    .from(transactions)
-    .where(sql`${transactions.deleted_at} IS NULL AND ${transactions.security_id} IS NOT NULL`)
-    .groupBy(transactions.account_id, transactions.security_id),
-);
+// Positions are derived by the financial engine at src/backend/financial/.
+// The previous SQL `positions` view summed transaction quantities directly,
+// which mishandled corporate actions (notably stock splits). Slice 1 of the
+// financial engine drops the view; engine functions are the single source
+// of truth. See docs/specs/2026-05-18-financial-engine-slice-1.md §F3.

@@ -55,10 +55,25 @@ describe('runMigrations', () => {
     }
   });
 
-  it('creates the positions view', () => {
+  it('does not have a positions view (dropped in 0001 — engine is the truth)', () => {
     db = createDb(join(tmpDir, 'test.sqlite'));
     runMigrations(db);
-    expect(views(db)).toContain('positions');
+    expect(views(db)).not.toContain('positions');
+  });
+
+  it('adds cost_basis_method to accounts with fifo default', () => {
+    db = createDb(join(tmpDir, 'test.sqlite'));
+    runMigrations(db);
+    db.$client
+      .prepare(
+        `INSERT INTO accounts (name, tax_treatment, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run('Brokerage', 'taxable', Date.now(), Date.now());
+    const row = db.$client
+      .prepare(`SELECT cost_basis_method FROM accounts WHERE name = ?`)
+      .get('Brokerage') as { cost_basis_method: string };
+    expect(row.cost_basis_method).toBe('fifo');
   });
 
   it('is idempotent (re-running does nothing)', () => {
