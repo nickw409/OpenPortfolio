@@ -108,6 +108,20 @@ The auto-allowed forms:
   `worktrees/<name>/` so edits can't leak to main. Verify with
   `git -C worktrees/<name> status` after a batch of edits.
 
+## Subagent model selection
+
+For subagent-dispatched implementation tasks against the plans in `docs/superpowers/plans/`, **default to Sonnet** (`model: "sonnet"` on the `Agent` call). The orchestrator stays on Opus and does the thinking; the subagent does the typing. Sonnet 4.6 is meaningfully cheaper and faster and handles well-scoped mechanical work fine.
+
+Plans are eligible for Sonnet when they pin file paths, function/type signatures, task ordering, and behavior specified numerically — i.e. the subagent is transcribing decisions, not making them.
+
+**Escalate to Opus when:**
+
+- The plan task body says "decide between X and Y", "design the strategy for…", or describes behavior without pinning signatures.
+- The task is a multi-file refactor where the subagent has to make structural choices mid-task.
+- The plan is missing — the subagent would have to do design work, not implementation.
+
+Pre-flight check: skim the specific task body before dispatching. "Add this function with this signature, here's the test" → Sonnet. "Build the generator that produces…" → Opus.
+
 ## Permissions and security
 
 The committed `.claude/settings.json` is the shared allowlist. It's
