@@ -4,7 +4,7 @@
 
 import fc from 'fast-check';
 
-import { ofCents } from '@shared/money';
+import { multiplyByRatio, ofCents } from '@shared/money';
 
 import { computeValuationSeries } from './valuation';
 import type { PriceHistory, Tx } from './types';
@@ -61,7 +61,7 @@ describe('property: tr_index follows constant-return chain', () => {
           // that's ~0.6% drift in the absolute worst case.
           const expected = Math.pow(1 + r, nDays - 1);
           const actual = series.points[nDays - 1]!.tr_index;
-          expect(Math.abs(actual - expected)).toBeLessThan(Math.max(0.01, 0.001 * nDays));
+          expect(Math.abs(actual - expected)).toBeLessThan(Math.max(1e-4, 0.001 * nDays));
         },
       ),
       { numRuns: 100 },
@@ -81,7 +81,7 @@ describe('property: scale invariance', () => {
           b.txns = b.txns.map((t) => ({
             ...t,
             quantity: t.quantity * 2,
-            amount_cents: ofCents(Number(t.amount_cents) * 2),
+            amount_cents: multiplyByRatio(t.amount_cents, 2),
           }));
           const seriesA = computeValuationSeries(a.txns, a.prices, { from: a.from, to: a.to }, { scope: 'portfolio' });
           const seriesB = computeValuationSeries(b.txns, b.prices, { from: b.from, to: b.to }, { scope: 'portfolio' });

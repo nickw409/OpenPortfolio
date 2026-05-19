@@ -1,6 +1,6 @@
 {
   "name": "daily-twr-simple",
-  "description": "Buy 100 shares on day 1, hold 30 days at flat price, sell on day 31 at +10%. TWR = 10%; MWR ≈ 10% (single-period); no drawdown.",
+  "description": "Buy 100 shares on day 1, hold 30 days at flat price, sell on day 31 at +10%. Total-period TWR = 10%; annualized MWR ≈ 224% (10% gain compounded across 30 days annualizes to ~224%); no drawdown.",
   "transactions": [
     {
       "id": 1,

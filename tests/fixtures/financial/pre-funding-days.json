@@ -1,6 +1,6 @@
 {
   "name": "pre-funding-days",
-  "description": "Empty account for 10 days, then deposit + buy. TR index stays at 1.0 through the empty stretch; first non-1.0 value appears once price moves after the funded date.",
+  "description": "Account empty through 2026-01-10 (10 days); deposit + buy on 2026-01-11 at $100; price moves to $110 on 2026-01-12. TR index is 1.0 for all 11 days from Jan 1 through Jan 11 (Jan 11 has same-day deposit-and-buy with zero return), then moves to ~1.10 on Jan 12.",
   "transactions": [
     { "id": 1, "account_id": 1, "security_id": null, "transaction_type": "deposit",
       "transaction_date": "2026-01-11T00:00:00Z", "quantity": 0, "price_cents": null,

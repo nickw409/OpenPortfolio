@@ -4,6 +4,10 @@
 // That's intentional — the helper is small enough that a dropped branch
 // here would show up as a coverage regression in test code, which is fine.
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
 import { ofCents, ofDollars, ZERO, type Money } from '@shared/money';
 
 import type { CpiPoint, PriceHistory, PricePoint, Tx, TxType } from './types';
@@ -72,4 +76,38 @@ export function buildCpiSeries(
   entries: ReadonlyArray<readonly [string, number]>,
 ): ReadonlyArray<CpiPoint> {
   return entries.map(([d, idx]) => ({ date: dateD(d), index: idx }));
+}
+
+// ─── fixture loading ────────────────────────────────────────────────────
+
+// Loads a JSON fixture under tests/fixtures/financial/ by name.
+export function loadFixture(name: string): any {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const path = resolve(here, '../../../tests/fixtures/financial', `${name}.json`);
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+// Converts a raw transactions array (parsed JSON) into Tx[] by reviving
+// Date and Money fields.
+export function reviveTxns(raw: any[]): Tx[] {
+  return raw.map((t) => ({
+    ...t,
+    transaction_date: new Date(t.transaction_date),
+    price_cents: t.price_cents === null ? null : ofCents(t.price_cents),
+    amount_cents: ofCents(t.amount_cents),
+    fee_cents: t.fee_cents === null ? null : ofCents(t.fee_cents),
+  }));
+}
+
+// Converts a raw price-history object (parsed JSON keyed by string
+// security_id) into the PriceHistory Map shape the engine expects.
+export function revivePrices(raw: Record<string, any[]>): PriceHistory {
+  const out = new Map<number, any[]>();
+  for (const [secId, pts] of Object.entries(raw)) {
+    out.set(
+      Number(secId),
+      pts.map((p) => ({ date: new Date(p.date), price_cents: ofCents(p.price_cents) })),
+    );
+  }
+  return out;
 }
