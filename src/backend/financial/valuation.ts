@@ -4,7 +4,7 @@
 // { market_value, cost_basis, external_cashflow, tr_index }.
 // See docs/specs/2026-05-19-financial-engine-slice-2.md.
 
-import { add, multiplyByRatio, ZERO, type Money } from '@shared/money';
+import { add, multiplyByRatio, ofCents, ZERO, type Money } from '@shared/money';
 
 import { computeLots } from './lots';
 import type {
@@ -34,17 +34,15 @@ export function computeValuationSeries(
     throw new RangeError('range.to must be >= range.from');
   }
 
-  // NOTE: `opts.scope` is currently passed through to the returned
-  // ValuationSeries.scope but does not yet filter transactions to a
-  // single account. Task 5 wires scope-aware filtering: account scope
-  // restricts txns to that account_id and counts transfer_in/out as
-  // external cashflows; portfolio scope nets cross-account transfers.
-  // For now, every invocation behaves as if scope === 'portfolio'.
-
   // Group transactions by (account_id, security_id) so each call to
   // computeLots sees a uniform group. computeLots validates uniformity and
   // throws on mixed groups.
-  const groups = groupTxns(txns);
+  const allGroups = groupTxns(txns);
+  const scopedAccountId = typeof opts.scope === 'object' ? opts.scope.account_id : null;
+  const groupsForScope =
+    scopedAccountId !== null
+      ? allGroups.filter((g) => g[0]!.account_id === scopedAccountId)
+      : allGroups;
 
   // Iterate one day at a time; for each day, snapshot open lots across all
   // groups and value them at the carried-forward price. TR-index and cashflow
@@ -63,7 +61,7 @@ export function computeValuationSeries(
     // snapshots between days where no transaction changes the lot set.
     let marketValue: Money = ZERO;
     let costBasis: Money = ZERO;
-    for (const group of groups) {
+    for (const group of groupsForScope) {
       const { openLots } = computeLots(group, { method: 'fifo', asOf: day });
       // Cost basis sums all open lots regardless of price availability —
       // it's "what you paid" and doesn't depend on a live market quote.
@@ -79,12 +77,26 @@ export function computeValuationSeries(
       }
     }
 
+    const cashflow = externalCashflowOnDay(txns, day, opts.scope);
+
+    let trIndex = 1.0;
+    if (points.length > 0) {
+      const prev = points[points.length - 1]!;
+      const vOpen = Number(prev.market_value_cents);
+      if (vOpen > 0) {
+        const dailyReturn = (Number(marketValue) - Number(cashflow)) / vOpen - 1;
+        trIndex = prev.tr_index * (1 + dailyReturn);
+      } else {
+        trIndex = prev.tr_index; // pre-funding day — no return to apply
+      }
+    }
+
     points.push({
       date: day,
       market_value_cents: marketValue,
       cost_basis_cents: costBasis,
-      external_cashflow_cents: ZERO, // Task 6: cashflow filter
-      tr_index: 1.0,                 // Task 5: TR-index walk
+      external_cashflow_cents: cashflow,
+      tr_index: trIndex,
     });
   }
 
@@ -108,6 +120,38 @@ function groupTxns(txns: ReadonlyArray<Tx>): Array<Tx[]> {
     group.push(tx);
   }
   return Array.from(map.values());
+}
+
+// Sums external cashflows on `date` under the chosen scope. Portfolio
+// scope: deposit (+) and withdrawal (−) only. Account scope: also
+// transfer_in (+) and transfer_out (−) for the chosen account.
+function externalCashflowOnDay(
+  txns: ReadonlyArray<Tx>,
+  date: Date,
+  scope: Scope,
+): Money {
+  const dayStart = startOfUtcDay(date).getTime();
+  const dayEnd = dayStart + ONE_DAY_MS;
+  const accountId = typeof scope === 'object' ? scope.account_id : null;
+
+  let sum: Money = ZERO;
+  for (const tx of txns) {
+    const t = tx.transaction_date.getTime();
+    if (t < dayStart || t >= dayEnd) continue;
+    if (accountId !== null && tx.account_id !== accountId) continue;
+
+    const kind = tx.transaction_type;
+    if (kind === 'deposit') sum = add(sum, tx.amount_cents);
+    else if (kind === 'withdrawal') sum = add(sum, ofCents(-Number(tx.amount_cents)));
+    else if (accountId !== null && kind === 'transfer_in') sum = add(sum, tx.amount_cents);
+    else if (accountId !== null && kind === 'transfer_out')
+      sum = add(sum, ofCents(-Number(tx.amount_cents)));
+  }
+  return sum;
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
 // Returns the most recent price at or before `date` for `securityId`,
