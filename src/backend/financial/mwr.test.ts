@@ -74,3 +74,47 @@ describe('computeMoneyWeightedReturn — bad initial state', () => {
     }
   });
 });
+
+describe('computeMoneyWeightedReturn — intermediate cashflows', () => {
+  it('handles a mid-period deposit; Newton converges (method=newton)', () => {
+    // Day 0: deposit $10,000, buy 100 @ $100 ($10,000 position).
+    // Day 180: deposit $5,000, buy 50 @ $100 ($5,000 position).
+    // Final: 150 shares @ $120 = $18,000.
+    // Generate weekly anchor prices flat at 10000 cents, then jump
+    // to 12000 on the last day.
+    const pricePts: [string, number][] = [];
+    const startMs = new Date('2026-01-01T00:00:00Z').getTime();
+    const endMs = new Date('2027-01-02T00:00:00Z').getTime();
+    const stepMs = 6 * 86_400_000;
+    for (let t = startMs; t < endMs; t += stepMs) {
+      const iso = new Date(t).toISOString().slice(0, 10);
+      pricePts.push([iso, 10000]);
+    }
+    pricePts.push(['2027-01-02', 12000]);
+
+    const txns = [
+      buildTx({ id: 1, transaction_type: 'deposit', transaction_date: dateD('2026-01-01'),
+        security_id: null, quantity: 0, price_cents: null, amount_cents: D(10000) }),
+      buildTx({ id: 2, transaction_type: 'buy', transaction_date: dateD('2026-01-01'),
+        quantity: 100, price_cents: D(100), amount_cents: D(10000) }),
+      buildTx({ id: 3, transaction_type: 'deposit', transaction_date: dateD('2026-07-01'),
+        security_id: null, quantity: 0, price_cents: null, amount_cents: D(5000) }),
+      buildTx({ id: 4, transaction_type: 'buy', transaction_date: dateD('2026-07-01'),
+        quantity: 50, price_cents: D(100), amount_cents: D(5000) }),
+    ];
+    const prices = buildPriceHistory([[1, pricePts]]);
+    const series = computeValuationSeries(
+      txns,
+      prices,
+      { from: dateD('2026-01-01'), to: dateD('2027-01-02') },
+      { scope: 'portfolio' },
+    );
+    const result = computeMoneyWeightedReturn(series);
+    // Sanity: result is a finite percentage in the credible range.
+    expect(Number.isFinite(result.irr_pct)).toBe(true);
+    expect(result.irr_pct).toBeGreaterThan(0);
+    expect(result.irr_pct).toBeLessThan(100);
+    expect(result.method).toBe('newton');
+    expect(result.iterations).toBeLessThan(20);
+  });
+});

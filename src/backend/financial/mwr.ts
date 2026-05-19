@@ -8,7 +8,11 @@ import type { MwrResult, ValuationSeries } from './types';
 
 const DAYS_PER_YEAR = 365.25;
 const NEWTON_MAX_ITER = 100;
-const ABS_NPV_TOL_CENTS = 1; // |NPV(r)| < 1 cent
+// Convergence tolerance: NPV within 1 cent of zero. Scale-independent —
+// loose for small portfolios (<$10), tight for large (>$10M). Acceptable
+// because Newton already converges fast on smooth NPV surfaces; this
+// just bounds the post-converged stopping point.
+const ABS_NPV_TOL_CENTS = 1;
 const REL_R_TOL = 1e-10;
 
 interface Cashflow {
@@ -22,6 +26,7 @@ function buildCashflows(series: ValuationSeries): {
   start_value_cents: number;
   end_value_cents: number;
   flows: Cashflow[];
+  total_years: number;
 } {
   const first = series.points[0]!;
   const last = series.points[series.points.length - 1]!;
@@ -48,7 +53,9 @@ function buildCashflows(series: ValuationSeries): {
   // End value is likewise the closing market value — day-N cashflows are
   // already in that value and must not be double-subtracted.
   const endVal = Number(last.market_value_cents);
-  return { start_value_cents: startVal, end_value_cents: endVal, flows };
+  const total_years =
+    (last.date.getTime() - first.date.getTime()) / 86_400_000 / DAYS_PER_YEAR;
+  return { start_value_cents: startVal, end_value_cents: endVal, flows, total_years };
 }
 
 function npv(r: number, start: number, end: number, flows: Cashflow[], years: number): number {
@@ -73,7 +80,7 @@ function npvPrime(r: number, end: number, flows: Cashflow[], years: number): num
 
 export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
   if (series.points.length === 0) throw new RangeError('series.points must be non-empty');
-  const { start_value_cents, end_value_cents, flows } = buildCashflows(series);
+  const { start_value_cents, end_value_cents, flows, total_years: totalYears } = buildCashflows(series);
   if (start_value_cents <= 0) {
     throw new FinancialError(
       'irr.bad_initial_state',
@@ -81,11 +88,6 @@ export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
       { scope: series.scope, start_value_cents },
     );
   }
-  const totalYears =
-    (series.points[series.points.length - 1]!.date.getTime() -
-      series.points[0]!.date.getTime()) /
-    86_400_000 /
-    DAYS_PER_YEAR;
 
   // Seed from TWR — usually within a few percent of IRR.
   const twr = computeTimeWeightedReturn(series);
@@ -102,6 +104,12 @@ export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
     const dv = npvPrime(r, end_value_cents, flows, totalYears);
     if (dv === 0 || !Number.isFinite(dv)) break;
     const next = r - v / dv;
+    // Bracket is [−0.99, 10.0]: -0.99 avoids the (1+r)^t singularity at
+    // r = -1; 10.0 caps the upper bound at 1000% annualized (a real but
+    // catastrophic-portfolio territory). Newton steps outside this
+    // bracket are treated as divergence — Task 10's bisection retries
+    // within the same bracket. Keep these values in sync if Task 10
+    // adjusts the bracket.
     if (!Number.isFinite(next) || next <= -0.99 || next >= 10.0) break;
     if (Math.abs(next - r) < REL_R_TOL) {
       return { irr_pct: next * 100, iterations: iter + 1, method: 'newton' };
