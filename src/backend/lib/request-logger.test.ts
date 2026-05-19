@@ -45,8 +45,8 @@ describe('createRequestLogger', () => {
       path: '/api/v1/accounts',
       status: 200,
     });
-    expect(typeof requestLogs[0].duration_ms).toBe('number');
-    expect(requestLogs[0].duration_ms).toBeGreaterThanOrEqual(0);
+    expect(typeof requestLogs[0]!.duration_ms).toBe('number');
+    expect(requestLogs[0]!.duration_ms).toBeGreaterThanOrEqual(0);
   });
 
   it('skips /api/v1/health to avoid Electron polling spam', async () => {
@@ -74,7 +74,7 @@ describe('createRequestLogger', () => {
     expect(res.status).toBe(503);
     const requestLogs = entries.filter((e) => e.msg === 'request');
     expect(requestLogs).toHaveLength(1);
-    expect(requestLogs[0]).toMatchObject({ status: 503, path: '/api/v1/accounts' });
+    expect(requestLogs[0]!).toMatchObject({ status: 503, path: '/api/v1/accounts' });
   });
 
   it('captures request and response bodies at debug level', async () => {
@@ -96,8 +96,8 @@ describe('createRequestLogger', () => {
 
     const requestLogs = entries.filter((e) => e.msg === 'request');
     expect(requestLogs).toHaveLength(1);
-    expect(requestLogs[0].request_body).toEqual({ hello: 'world' });
-    expect(requestLogs[0].response_body).toEqual({ echoed: { hello: 'world' } });
+    expect(requestLogs[0]!.request_body).toEqual({ hello: 'world' });
+    expect(requestLogs[0]!.response_body).toEqual({ echoed: { hello: 'world' } });
   });
 
   it('logs streaming responses as [stream] placeholder at debug level', async () => {
@@ -116,7 +116,7 @@ describe('createRequestLogger', () => {
 
     const requestLogs = entries.filter((e) => e.msg === 'request');
     expect(requestLogs).toHaveLength(1);
-    expect(requestLogs[0].response_body).toBe('[stream]');
+    expect(requestLogs[0]!.response_body).toBe('[stream]');
   });
 
   it('respects pino redact paths on body fields', async () => {
@@ -144,7 +144,7 @@ describe('createRequestLogger', () => {
 
     const requestLogs = entries.filter((e) => e.msg === 'request');
     expect(requestLogs).toHaveLength(1);
-    const body = requestLogs[0].request_body as { api_key: string; other: string };
+    const body = requestLogs[0]!.request_body as { api_key: string; other: string };
     expect(body.api_key).toBe('[REDACTED]');
     expect(body.other).toBe('visible');
   });

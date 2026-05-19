@@ -5,6 +5,7 @@ import { createDb } from '@backend/db/client';
 import { runBoot } from '@backend/lib/boot';
 import { createErrorHandler } from '@backend/lib/error-handler';
 import { logger } from '@backend/lib/logger';
+import { createRequestLogger } from '@backend/lib/request-logger';
 import { createServerState } from '@backend/lib/server-state';
 import { createBootGate, registerShutdown } from '@backend/lib/shutdown';
 import { VERSION } from '@backend/lib/version';
@@ -14,6 +15,7 @@ const db = createDb();
 const state = createServerState();
 
 const app = new Hono();
+app.use('*', createRequestLogger(logger));
 app.use('*', createBootGate(state));
 app.onError(createErrorHandler(logger));
 app.route('/api/v1/health', createHealthRoute({ db, state, version: VERSION }));
