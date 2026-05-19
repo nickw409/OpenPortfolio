@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   'validation.invalid_input',
   'validation.invalid_money',
   'not_found.resource',
+  'service.migrating',
   'service.shutting_down',
   'internal.unknown',
 ] as const;
