@@ -1,0 +1,25 @@
+{
+  "name": "pre-funding-days",
+  "description": "Empty account for 10 days, then deposit + buy. TR index stays at 1.0 through the empty stretch; first non-1.0 value appears once price moves after the funded date.",
+  "transactions": [
+    { "id": 1, "account_id": 1, "security_id": null, "transaction_type": "deposit",
+      "transaction_date": "2026-01-11T00:00:00Z", "quantity": 0, "price_cents": null,
+      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" },
+    { "id": 2, "account_id": 1, "security_id": 1, "transaction_type": "buy",
+      "transaction_date": "2026-01-11T00:00:00Z", "quantity": 100, "price_cents": 10000,
+      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" }
+  ],
+  "price_history": {
+    "1": [
+      { "date": "2026-01-11T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-12T00:00:00Z", "price_cents": 11000 }
+    ]
+  },
+  "range": { "from": "2026-01-01T00:00:00Z", "to": "2026-01-12T00:00:00Z" },
+  "scope": "portfolio",
+  "expected": {
+    "tr_index_day_1_through_11_all_1": true,
+    "tr_index_day_12_approx": 1.10,
+    "twr_return_pct_approx": 10.0
+  }
+}

@@ -127,6 +127,11 @@ describe('financial engine — golden fixtures', () => {
   }
 
   for (const fixture of fixtures) {
+    // Slice-2 fixtures (valuation / TWR / drawdown shapes) use a different
+    // top-level structure and are tested by their own dedicated test files.
+    // Skip any fixture that lacks the slice-1 `scenarios` array.
+    if (!Array.isArray(fixture.scenarios)) continue;
+
     describe(fixture.name, () => {
       const txns = fixture.transactions.map(toTx);
 

@@ -1,0 +1,41 @@
+{
+  "name": "cashflows-mid-period",
+  "description": "Deposit on day 10 + day 20; market moves +5% / -3% / +8% across three sub-periods. TWR and MWR diverge meaningfully.",
+  "transactions": [
+    { "id": 1, "account_id": 1, "security_id": null, "transaction_type": "deposit",
+      "transaction_date": "2026-01-01T00:00:00Z", "quantity": 0, "price_cents": null,
+      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" },
+    { "id": 2, "account_id": 1, "security_id": 1, "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z", "quantity": 100, "price_cents": 10000,
+      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" },
+    { "id": 3, "account_id": 1, "security_id": null, "transaction_type": "deposit",
+      "transaction_date": "2026-01-10T00:00:00Z", "quantity": 0, "price_cents": null,
+      "amount_cents": 500000, "fee_cents": null, "currency_code": "USD" },
+    { "id": 4, "account_id": 1, "security_id": 1, "transaction_type": "buy",
+      "transaction_date": "2026-01-10T00:00:00Z", "quantity": 47, "price_cents": 10500,
+      "amount_cents": 493500, "fee_cents": null, "currency_code": "USD" },
+    { "id": 5, "account_id": 1, "security_id": null, "transaction_type": "deposit",
+      "transaction_date": "2026-01-20T00:00:00Z", "quantity": 0, "price_cents": null,
+      "amount_cents": 500000, "fee_cents": null, "currency_code": "USD" },
+    { "id": 6, "account_id": 1, "security_id": 1, "transaction_type": "buy",
+      "transaction_date": "2026-01-20T00:00:00Z", "quantity": 49, "price_cents": 10185,
+      "amount_cents": 499065, "fee_cents": null, "currency_code": "USD" }
+  ],
+  "price_history": {
+    "1": [
+      { "date": "2026-01-01T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-07T00:00:00Z", "price_cents": 10250 },
+      { "date": "2026-01-10T00:00:00Z", "price_cents": 10500 },
+      { "date": "2026-01-15T00:00:00Z", "price_cents": 10340 },
+      { "date": "2026-01-20T00:00:00Z", "price_cents": 10185 },
+      { "date": "2026-01-25T00:00:00Z", "price_cents": 10580 },
+      { "date": "2026-01-30T00:00:00Z", "price_cents": 11000 }
+    ]
+  },
+  "range": { "from": "2026-01-01T00:00:00Z", "to": "2026-01-30T00:00:00Z" },
+  "scope": "portfolio",
+  "expected": {
+    "_note": "Hand-computed: three sub-period returns approximately +5%, -3%, +8%. TWR (geometric chain) approximately (1.05)(0.97)(1.08) - 1 = +9.998%. MWR (IRR) will differ from TWR due to cashflow timing; verified against engine output once TWR/MWR primitives land in Tasks 8-10.",
+    "twr_return_pct_approx": 9.998
+  }
+}

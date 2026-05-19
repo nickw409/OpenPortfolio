@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
 import { ofCents } from '@shared/money';
 
 import { FinancialError } from './errors';
 import { computeValuationSeries } from './valuation';
 import { buildPriceHistory, buildTx, D, dateD, resetTxIds } from './test-helpers';
+import type { PriceHistory, Tx } from './types';
 
 beforeEach(() => resetTxIds());
 
@@ -558,5 +563,67 @@ describe('computeValuationSeries — price staleness', () => {
         { scope: 'portfolio', maxStalenessDays: 7 },
       ),
     ).not.toThrow();
+  });
+});
+
+// ─── fixture-driven tests ────────────────────────────────────────────────
+
+function loadFixture(name: string): any {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const path = resolve(here, '../../../tests/fixtures/financial', `${name}.json`);
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function reviveTxns(raw: any[]): Tx[] {
+  return raw.map((t) => ({
+    ...t,
+    transaction_date: new Date(t.transaction_date),
+    price_cents: t.price_cents === null ? null : ofCents(t.price_cents),
+    amount_cents: ofCents(t.amount_cents),
+    fee_cents: t.fee_cents === null ? null : ofCents(t.fee_cents),
+  }));
+}
+
+function revivePrices(raw: Record<string, any[]>): PriceHistory {
+  const out = new Map<number, any[]>();
+  for (const [secId, pts] of Object.entries(raw)) {
+    out.set(
+      Number(secId),
+      pts.map((p) => ({ date: new Date(p.date), price_cents: ofCents(p.price_cents) })),
+    );
+  }
+  return out;
+}
+
+describe('fixture: daily-twr-simple', () => {
+  it('valuation series matches hand-computed TR index over 30 days at flat price + 10% sell', () => {
+    const fx = loadFixture('daily-twr-simple');
+    const series = computeValuationSeries(
+      reviveTxns(fx.transactions),
+      revivePrices(fx.price_history),
+      { from: new Date(fx.range.from), to: new Date(fx.range.to) },
+      { scope: fx.scope },
+    );
+    // Day 1 = 100 × $100.00 = $10,000.00. Day 31 = sell-out → market value 0.
+    expect(series.points[0]!.market_value_cents).toBe(ofCents(1_000_000));
+    expect(series.points[series.points.length - 1]!.market_value_cents).toBe(ofCents(0));
+    // tr_index right before the sell should be ~1.10.
+    expect(series.points[29]!.tr_index).toBeCloseTo(1.10, 8);
+  });
+});
+
+describe('fixture: pre-funding-days', () => {
+  it('tr_index = 1.0 for the 10 pre-funding days; index moves only after the funded day', () => {
+    const fx = loadFixture('pre-funding-days');
+    const series = computeValuationSeries(
+      reviveTxns(fx.transactions),
+      revivePrices(fx.price_history),
+      { from: new Date(fx.range.from), to: new Date(fx.range.to) },
+      { scope: fx.scope },
+    );
+    for (let i = 0; i < 11; i++) {
+      expect(series.points[i]!.tr_index).toBe(1.0);
+    }
+    expect(series.points[11]!.tr_index).toBeCloseTo(1.10, 8);
   });
 });

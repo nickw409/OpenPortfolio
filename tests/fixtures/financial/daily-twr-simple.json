@@ -1,0 +1,48 @@
+{
+  "name": "daily-twr-simple",
+  "description": "Buy 100 shares on day 1, hold 30 days at flat price, sell on day 31 at +10%. TWR = 10%; MWR ≈ 10% (single-period); no drawdown.",
+  "transactions": [
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 10000,
+      "amount_cents": 1000000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "sell",
+      "transaction_date": "2026-01-31T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 11000,
+      "amount_cents": 1100000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
+  ],
+  "price_history": {
+    "1": [
+      { "date": "2026-01-01T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-07T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-14T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-21T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-28T00:00:00Z", "price_cents": 10000 },
+      { "date": "2026-01-30T00:00:00Z", "price_cents": 11000 },
+      { "date": "2026-01-31T00:00:00Z", "price_cents": 11000 }
+    ]
+  },
+  "range": { "from": "2026-01-01T00:00:00Z", "to": "2026-01-31T00:00:00Z" },
+  "scope": "portfolio",
+  "expected": {
+    "twr_return_pct": 10.0,
+    "mwr_irr_pct_approx": 224.0,
+    "drawdown_nominal_pct": 0.0
+  }
+}
