@@ -3,6 +3,9 @@
 // range + scope, returns a per-day series of
 // { market_value, cost_basis, external_cashflow, tr_index }.
 // See docs/specs/2026-05-19-financial-engine-slice-2.md.
+// computeValuationSeries normalizes range.from/range.to to UTC midnight
+// internally — callers may pass any Date; the returned series points are
+// always keyed by UTC midnights.
 
 import { add, multiplyByRatio, negate, ZERO, type Money } from '@shared/money';
 
@@ -47,14 +50,20 @@ export function computeValuationSeries(
       ? allGroups.filter((g) => g[0]!.account_id === scopedAccountId)
       : allGroups;
 
+  // Normalize the range endpoints to UTC midnight so the day loop's
+  // `t += ONE_DAY_MS` increments land on UTC day boundaries regardless of
+  // whether the caller passed a UTC midnight or a local-time Date.
+  const fromUtc = startOfUtcDay(range.from);
+  const toUtc = startOfUtcDay(range.to);
+
   // Iterate one day at a time; for each day, snapshot open lots across all
   // groups and value them at the carried-forward price. External cashflows
   // are summed per scope; TR-index chains from those daily returns.
   const maxStale = opts.maxStalenessDays ?? DEFAULT_MAX_STALENESS_DAYS;
   const points: ValuationPoint[] = [];
   for (
-    let t = range.from.getTime();
-    t <= range.to.getTime();
+    let t = fromUtc.getTime();
+    t <= toUtc.getTime();
     t += ONE_DAY_MS
   ) {
     const day = new Date(t);
