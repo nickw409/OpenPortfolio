@@ -3,6 +3,7 @@
 // before running the same stats computation.
 
 import { cpiAt } from './cpi';
+import { FinancialError } from './errors';
 import type {
   CpiSeries,
   DrawdownResult,
@@ -75,6 +76,13 @@ export function computeDrawdown(
   };
   if (cpi !== undefined && series.points.length > 0) {
     const cpi0 = cpiAt(cpi, series.points[0]!.date);
+    if (cpi0 <= 0) {
+      throw new FinancialError(
+        'cpi.out_of_range',
+        'CPI index at range start is not positive; cannot deflate',
+        { requested_date: series.points[0]!.date, cpi_index: cpi0 },
+      );
+    }
     const realIdx = series.points.map((p) => ({
       date: p.date,
       value: p.tr_index / (cpiAt(cpi, p.date) / cpi0),

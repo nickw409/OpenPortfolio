@@ -141,8 +141,22 @@ describe('computeDrawdown — real branch', () => {
       ['2026-10-01', 330.0], // +10% over 9 months
     ]);
     const result = computeDrawdown(series, cpi);
+
+    // Nominal drawdown is exactly (1.0 / 1.2) - 1 = -16.67%.
+    expect(result.nominal.max_drawdown_pct).toBeCloseTo(-16.67, 1);
+
+    // Real drawdown: peak at 2026-04-01, trough at 2026-07-01 (or 10-01).
+    // CPI is linearly interpolated between 300 (Jan 1) and 330 (Oct 1):
+    //   cpiAt(Apr 1) ≈ 300 + 30 × (90/273) ≈ 309.89
+    //   cpiAt(Jul 1) ≈ 300 + 30 × (181/273) ≈ 319.89
+    //   cpiAt(Oct 1) = 330.00
+    // Real peak ≈ 1.2 / (309.89/300) ≈ 1.1617
+    // Real trough at Oct 1 ≈ 1.0 / (330/300) ≈ 0.9091
+    // Real DD ≈ (0.9091 / 1.1617) - 1 ≈ -21.74%
     expect(result.real).not.toBeNull();
-    // Real drawdown should be strictly deeper (more negative) than nominal.
+    expect(result.real!.max_drawdown_pct).toBeCloseTo(-21.74, 0);
+
+    // Sanity: real deeper than nominal.
     expect(result.real!.max_drawdown_pct).toBeLessThan(result.nominal.max_drawdown_pct);
   });
 
