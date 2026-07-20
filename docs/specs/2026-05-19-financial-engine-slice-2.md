@@ -1,6 +1,6 @@
 # Financial calculation engine — slice 2 (returns, drawdown, real returns, allocation)
 
-**Status:** Drafted 2026-05-19
+**Status:** As-built, ratified 2026-07-20 (drafted 2026-05-19)
 **Date:** 2026-05-19
 **Workstream:** [docs/WORKSTREAMS.md](../WORKSTREAMS.md) §3 Financial calculation engine
 **Depends on:** [Slice 1](2026-05-18-financial-engine-slice-1.md), [Initial schema](2026-05-15-initial-schema-design.md), [Money primitive](2026-05-15-money-primitive-design.md)
@@ -173,18 +173,19 @@ For each day d after the first:
   CF_d    = external_cashflow_cents[d]              // signed: deposits +, withdrawals −
   V_close = market_value[d]                         // today's close
 
-  // The day's investment-only return strips the cashflow:
-  daily_return = (V_close − CF_d) / V_open − 1      // if V_open > 0
-                 0                                  // if V_open == 0 (pre-funding)
+  // The day's cashflow joins the opening capital base:
+  base         = V_open + CF_d
+  daily_return = V_close / base − 1                 // if base > 0
+                 0                                  // if base ≤ 0 (pre-funding)
 
   tr_index[d] = tr_index[d−1] × (1 + daily_return)
 ```
 
 Conventions:
 
-- **Cashflow timing.** Start-of-day. `V_open + CF_d` is the capital base producing `V_close`. Matches the GIPS start-of-day convention and the way brokers post deposits. (End-of-day alternative would compute `daily_return = V_close / (V_open + CF_d) − 1`.)
+- **Cashflow timing.** Start-of-day. `V_open + CF_d` is the capital base producing `V_close`, so a deposit earns that day's market move. Matches the GIPS start-of-day convention and the way brokers post deposits. (End-of-day alternative would exclude the flow from the base: `daily_return = (V_close − CF_d) / V_open − 1`.)
 - **Empty days.** Weekends, holidays, no-price days carry forward yesterday's price. `market_value` changes only via share changes (buys/sells/splits on those days, rare but legal). TR index flat.
-- **Pre-funding days.** `V_open == 0` → `tr_index` stays at 1.0. The first day with positive value sets the baseline.
+- **Pre-funding days.** `V_open + CF_d ≤ 0` → `tr_index` stays at 1.0. The first day with a positive capital base sets the baseline.
 - **Splits.** Handled by slice 1's `computeLots` walk: share count and per-share basis both adjust, so market value is continuous through the split. TR index sees zero discontinuity.
 - **Cash dividends.** Slice 1 treats `dividend` as income, not a holding change — cash dividends do not enter `market_value` unless explicitly entered as a separate `buy` (the DRIP pattern documented in slice 1). Spec calls this out so users entering only `dividend` transactions know dividend income won't show up in TR / TWR.
 
@@ -345,7 +346,7 @@ Advisory performance budget: 100-security × 10-year portfolio (≈3650 days) ru
 
 ## Decisions and rationale
 
-Drafted 2026-05-19. Approval pending user review.
+Ratified 2026-07-20 (as-built). Backfilled and reconciled against the shipped implementation: the TR-index cashflow formula above was corrected to the start-of-day form the code actually computes (`V_close / (V_open + CF) − 1`), and tag allocation (F8) — deferred in an early commit — was implemented to match this spec before ratification.
 
 - **F1 — single spec, all five capabilities (A) chosen.** Sub-slicing (B, C, D) rejected: returns, drawdown, and real-returns share the F5 primitive, so splitting them creates a coordination problem; allocation is small enough to bundle.
 - **F2 — true daily TWR (A) chosen.** Modified Dietz (B) rejected: data-density savings illusory once drawdown is in scope. Linked Modified Dietz (C) rejected: extra algorithm complexity for a retail use case where the accuracy delta is noise. Dual (D) rejected: two algorithms to test and document for negligible payoff.
