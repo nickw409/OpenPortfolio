@@ -10,7 +10,7 @@ import { dirname, resolve } from 'node:path';
 
 import { ofCents, ofDollars, ZERO, type Money } from '@shared/money';
 
-import type { CpiPoint, PriceHistory, PricePoint, Scope, Tx, TxType } from './types';
+import type { CpiPoint, Lot, PriceHistory, PricePoint, Scope, Tx, TxType } from './types';
 
 export interface TxOverrides {
   id?: number;
@@ -119,6 +119,16 @@ export interface RealReturnFixture {
   expected: { cpi_change_pct_approx: number; real_pct_approx: number };
 }
 
+export interface RawLot {
+  sourceTxId: number;
+  account_id: number;
+  security_id: number;
+  acquired_at: string;
+  quantity: number;
+  cost_basis_cents: number;
+  currency_code: string;
+}
+
 export interface AllocationFixture {
   snapshot: {
     positions: Array<{
@@ -140,12 +150,36 @@ export interface AllocationFixture {
   expected: { equity_pct: number; bond_pct: number };
 }
 
+export interface TagAllocationFixture {
+  snapshot: AllocationFixture['snapshot'];
+  lots: RawLot[];
+  // Keyed by sourceTxId (string, as JSON object keys must be). Opening buys
+  // absent from this map are untagged.
+  lotTags: Record<string, string[]>;
+  expected: {
+    core_pct: number;
+    long_term_pct: number;
+    untagged_pct: number;
+    total_market_value_cents: number;
+  };
+}
+
 // Loads a JSON fixture under tests/fixtures/financial/ by name. The caller
 // supplies the expected shape as the type argument.
 export function loadFixture<T>(name: string): T {
   const here = dirname(fileURLToPath(import.meta.url));
   const path = resolve(here, '../../../tests/fixtures/financial', `${name}.json`);
   return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+
+// Converts a raw lot array (parsed JSON) into Lot[] by reviving the Date
+// and Money fields.
+export function reviveLots(raw: readonly RawLot[]): Lot[] {
+  return raw.map((l) => ({
+    ...l,
+    acquired_at: new Date(l.acquired_at),
+    cost_basis_cents: ofCents(l.cost_basis_cents),
+  }));
 }
 
 // Converts a raw transactions array (parsed JSON) into Tx[] by reviving
