@@ -2,7 +2,7 @@ import { ofCents } from '@shared/money';
 
 import { FinancialError } from './errors';
 import { computeValuationSeries } from './valuation';
-import { buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns } from './test-helpers';
+import { buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns, type ValuationFixture } from './test-helpers';
 
 beforeEach(() => resetTxIds());
 
@@ -565,7 +565,7 @@ describe('computeValuationSeries — price staleness', () => {
 
 describe('fixture: daily-twr-simple', () => {
   it('valuation series matches hand-computed TR index over 30 days at flat price + 10% sell', () => {
-    const fx = loadFixture('daily-twr-simple');
+    const fx = loadFixture<ValuationFixture>('daily-twr-simple');
     const series = computeValuationSeries(
       reviveTxns(fx.transactions),
       revivePrices(fx.price_history),
@@ -582,7 +582,7 @@ describe('fixture: daily-twr-simple', () => {
 
 describe('fixture: pre-funding-days', () => {
   it('tr_index = 1.0 for the 10 pre-funding days; index moves only after the funded day', () => {
-    const fx = loadFixture('pre-funding-days');
+    const fx = loadFixture<ValuationFixture>('pre-funding-days');
     const series = computeValuationSeries(
       reviveTxns(fx.transactions),
       revivePrices(fx.price_history),
@@ -602,7 +602,7 @@ describe('fixture: pre-funding-days', () => {
 
 describe('fixture: cashflows-mid-period', () => {
   it('valuation series captures mid-period cashflows + price moves across three sub-periods', () => {
-    const fx = loadFixture('cashflows-mid-period');
+    const fx = loadFixture<ValuationFixture>('cashflows-mid-period');
     const series = computeValuationSeries(
       reviveTxns(fx.transactions),
       revivePrices(fx.price_history),

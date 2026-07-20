@@ -10,7 +10,7 @@ import { dirname, resolve } from 'node:path';
 
 import { ofCents, ofDollars, ZERO, type Money } from '@shared/money';
 
-import type { CpiPoint, PriceHistory, PricePoint, Tx, TxType } from './types';
+import type { CpiPoint, PriceHistory, PricePoint, Scope, Tx, TxType } from './types';
 
 export interface TxOverrides {
   id?: number;
@@ -80,16 +80,77 @@ export function buildCpiSeries(
 
 // ─── fixture loading ────────────────────────────────────────────────────
 
-// Loads a JSON fixture under tests/fixtures/financial/ by name.
-export function loadFixture(name: string): any {
+// Raw (JSON-serialized) counterparts of the domain types: Dates are ISO
+// strings and Money is a plain cents number until revived below.
+export type RawTx = Omit<
+  Tx,
+  'transaction_date' | 'price_cents' | 'amount_cents' | 'fee_cents'
+> & {
+  transaction_date: string;
+  price_cents: number | null;
+  amount_cents: number;
+  fee_cents: number | null;
+};
+
+export interface RawPricePoint {
+  date: string;
+  price_cents: number;
+}
+
+// Top-level fixture shapes, one per consuming test. Kept here so call sites
+// pass the shape as loadFixture's type argument instead of leaning on `any`.
+export interface ValuationFixture {
+  transactions: RawTx[];
+  price_history: Record<string, RawPricePoint[]>;
+  range: { from: string; to: string };
+  scope: Scope;
+  max_staleness_days?: number;
+  expected?: Record<string, number>;
+}
+
+export interface DrawdownFixture extends ValuationFixture {
+  expected: { max_drawdown_pct_approx: number };
+}
+
+export interface RealReturnFixture {
+  cpi: Array<{ date: string; index: number }>;
+  nominal_pct_total: number;
+  range: { from: string; to: string };
+  expected: { cpi_change_pct_approx: number; real_pct_approx: number };
+}
+
+export interface AllocationFixture {
+  snapshot: {
+    positions: Array<{
+      account_id: number;
+      security_id: number;
+      quantity: number;
+      cost_basis_cents: number;
+      current_price_cents: number;
+      market_value_cents: number;
+      unrealized_gain_cents: number;
+      currency_code: string;
+    }>;
+    total_cost_basis_cents: number;
+    total_market_value_cents: number;
+    total_unrealized_gain_cents: number;
+    as_of: string;
+  };
+  securities: Record<string, { asset_class: string }>;
+  expected: { equity_pct: number; bond_pct: number };
+}
+
+// Loads a JSON fixture under tests/fixtures/financial/ by name. The caller
+// supplies the expected shape as the type argument.
+export function loadFixture<T>(name: string): T {
   const here = dirname(fileURLToPath(import.meta.url));
   const path = resolve(here, '../../../tests/fixtures/financial', `${name}.json`);
-  return JSON.parse(readFileSync(path, 'utf8'));
+  return JSON.parse(readFileSync(path, 'utf8')) as T;
 }
 
 // Converts a raw transactions array (parsed JSON) into Tx[] by reviving
 // Date and Money fields.
-export function reviveTxns(raw: any[]): Tx[] {
+export function reviveTxns(raw: readonly RawTx[]): Tx[] {
   return raw.map((t) => ({
     ...t,
     transaction_date: new Date(t.transaction_date),
@@ -101,8 +162,8 @@ export function reviveTxns(raw: any[]): Tx[] {
 
 // Converts a raw price-history object (parsed JSON keyed by string
 // security_id) into the PriceHistory Map shape the engine expects.
-export function revivePrices(raw: Record<string, any[]>): PriceHistory {
-  const out = new Map<number, any[]>();
+export function revivePrices(raw: Record<string, readonly RawPricePoint[]>): PriceHistory {
+  const out = new Map<number, PricePoint[]>();
   for (const [secId, pts] of Object.entries(raw)) {
     out.set(
       Number(secId),

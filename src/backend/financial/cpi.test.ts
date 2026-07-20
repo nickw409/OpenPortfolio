@@ -1,6 +1,6 @@
 import { FinancialError } from './errors';
 import { cpiAt, computeRealReturn } from './cpi';
-import { buildCpiSeries, dateD, loadFixture } from './test-helpers';
+import { buildCpiSeries, dateD, loadFixture, type RealReturnFixture } from './test-helpers';
 
 describe('cpiAt — exact-date lookup', () => {
   it('returns the index on an exact release date', () => {
@@ -136,8 +136,8 @@ describe('computeRealReturn — period-boundary deflation', () => {
 
 describe('fixture: real-returns-1979-1981', () => {
   it('computeRealReturn matches hand-computed CPI deflation', () => {
-    const fx = loadFixture('real-returns-1979-1981');
-    const cpi = fx.cpi.map((p: { date: string; index: number }) => ({
+    const fx = loadFixture<RealReturnFixture>('real-returns-1979-1981');
+    const cpi = fx.cpi.map((p) => ({
       date: new Date(p.date),
       index: p.index,
     }));

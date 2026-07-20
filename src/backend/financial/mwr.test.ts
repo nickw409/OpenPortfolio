@@ -231,7 +231,7 @@ describe('computeMoneyWeightedReturn — no solution', () => {
     // IRR for "lose everything" is −100% — but our bracket is [−0.99, 10]
     // so r = −0.99 makes NPV blow up. We accept whatever the engine returns
     // here: either irr_pct ≈ −99 (the boundary) OR no_solution.
-    let result: any;
+    let result: ReturnType<typeof computeMoneyWeightedReturn> | undefined;
     let error: Error | null = null;
     try {
       result = computeMoneyWeightedReturn(series);
@@ -241,7 +241,7 @@ describe('computeMoneyWeightedReturn — no solution', () => {
     if (error) {
       expect((error as FinancialError).code).toBe('irr.no_solution');
     } else {
-      expect(result.irr_pct).toBeLessThan(-95);
+      expect(result!.irr_pct).toBeLessThan(-95);
     }
   });
 });

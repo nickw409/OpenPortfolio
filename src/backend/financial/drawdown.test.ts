@@ -1,6 +1,6 @@
 import { computeDrawdown } from './drawdown';
 import { computeValuationSeries } from './valuation';
-import { buildCpiSeries, buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns } from './test-helpers';
+import { buildCpiSeries, buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns, type DrawdownFixture } from './test-helpers';
 import { FinancialError } from './errors';
 
 beforeEach(() => resetTxIds());
@@ -188,7 +188,7 @@ describe('computeDrawdown — real branch', () => {
 
 describe('fixture: drawdown-2008', () => {
   it('reports ~−40% max drawdown that never recovers', () => {
-    const fx = loadFixture('drawdown-2008');
+    const fx = loadFixture<DrawdownFixture>('drawdown-2008');
     const series = computeValuationSeries(
       reviveTxns(fx.transactions),
       revivePrices(fx.price_history),
