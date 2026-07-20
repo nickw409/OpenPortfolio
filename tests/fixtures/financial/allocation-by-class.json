@@ -1,0 +1,24 @@
+{
+  "name": "allocation-by-class",
+  "description": "Three securities across two asset classes. Weights partition to 100%.",
+  "snapshot": {
+    "positions": [
+      { "account_id": 1, "security_id": 1, "quantity": 100, "cost_basis_cents": 50000, "current_price_cents": 600, "market_value_cents": 60000, "unrealized_gain_cents": 10000, "currency_code": "USD" },
+      { "account_id": 1, "security_id": 2, "quantity": 100, "cost_basis_cents": 40000, "current_price_cents": 400, "market_value_cents": 40000, "unrealized_gain_cents": 0, "currency_code": "USD" },
+      { "account_id": 1, "security_id": 3, "quantity": 100, "cost_basis_cents": 90000, "current_price_cents": 1000, "market_value_cents": 100000, "unrealized_gain_cents": 10000, "currency_code": "USD" }
+    ],
+    "total_cost_basis_cents": 180000,
+    "total_market_value_cents": 200000,
+    "total_unrealized_gain_cents": 20000,
+    "as_of": "2026-12-31T00:00:00Z"
+  },
+  "securities": {
+    "1": { "asset_class": "equity" },
+    "2": { "asset_class": "bond" },
+    "3": { "asset_class": "equity" }
+  },
+  "expected": {
+    "equity_pct": 80.0,
+    "bond_pct": 20.0
+  }
+}
