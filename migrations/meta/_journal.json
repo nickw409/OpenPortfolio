@@ -15,6 +15,13 @@
       "when": 1779209190281,
       "tag": "0001_boring_warbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784647031970,
+      "tag": "0002_smart_firestar",
+      "breakpoints": true
     }
   ]
 }

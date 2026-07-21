@@ -111,6 +111,23 @@ export const cpi_data = sqliteTable(
   }),
 );
 
+// ─── provider_requests (audit/rate-limit; no soft-delete) ───────────────
+
+export const provider_requests = sqliteTable(
+  'provider_requests',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    provider: text('provider').notNull(),
+    endpoint: text('endpoint').notNull(),
+    requested_at: integer('requested_at', { mode: 'timestamp_ms' }).notNull(),
+    symbol: text('symbol'),
+    success: integer('success', { mode: 'boolean' }).notNull().default(false),
+  },
+  (t) => ({
+    providerTime: index('provider_requests_provider_time_idx').on(t.provider, t.requested_at),
+  }),
+);
+
 // ─── dashboard_layouts + tile_configs ───────────────────────────────────
 
 export const dashboard_layouts = sqliteTable('dashboard_layouts', {
