@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from '@backend/db/client';
-import { accounts, securities, transactions } from '@backend/db/schema';
+import { accounts, securities, transaction_tags, transactions } from '@backend/db/schema';
 import { activeWhere, softDelete } from '@backend/db/soft-delete';
 import { computeLots, FinancialError, type Tx } from '@backend/financial';
 import {
@@ -226,5 +226,49 @@ export function softDeleteTransaction(db: Db, id: number): void {
   db.$client.transaction(() => {
     softDelete(db, transactions, eq(transactions.id, id));
     writeAudit(db, { entity_type: 'transaction', entity_id: id, action: 'delete', before });
+  })();
+}
+
+export function bulkSoftDelete(db: Db, ids: number[]): void {
+  const rows = ids.map((id) => getActiveTransaction(db, id));
+  const deleted = new Set<number>();
+  db.$client.transaction(() => {
+    for (const before of rows) {
+      if (isLotAffecting(before.transaction_type as TxTypeName) && before.security_id !== null) {
+        const remaining = loadTxHistory(db, before.account_id, before.security_id)
+          .filter((t) => t.id !== before.id && !deleted.has(t.id));
+        try {
+          computeLots(remaining, { method: 'fifo' });
+        } catch (e) {
+          if (e instanceof FinancialError && e.code === 'domain.sell_exceeds_holdings') {
+            throw ingestionError('ingestion.sell_exceeds_holdings', `deleting transaction ${before.id} would cause a later sell to exceed holdings`, { id: before.id });
+          }
+          throw e;
+        }
+      }
+      softDelete(db, transactions, eq(transactions.id, before.id));
+      writeAudit(db, { entity_type: 'transaction', entity_id: before.id, action: 'delete', before });
+      deleted.add(before.id);
+    }
+  })();
+}
+
+export interface BulkRetagParams { ids: number[]; add: number[]; remove: number[]; }
+
+export function bulkRetag(db: Db, params: BulkRetagParams): void {
+  const rows = params.ids.map((id) => getActiveTransaction(db, id));
+  db.$client.transaction(() => {
+    for (const row of rows) {
+      for (const tagId of params.add) {
+        db.insert(transaction_tags).values({ transaction_id: row.id, tag_id: tagId }).onConflictDoNothing().run();
+      }
+      if (params.remove.length > 0) {
+        db.delete(transaction_tags).where(and(
+          eq(transaction_tags.transaction_id, row.id),
+          inArray(transaction_tags.tag_id, params.remove),
+        )).run();
+      }
+      writeAudit(db, { entity_type: 'transaction', entity_id: row.id, action: 'update', before: { tags: 'retag' }, after: { add: params.add, remove: params.remove } });
+    }
   })();
 }
