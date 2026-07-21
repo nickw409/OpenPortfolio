@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm';
 
 import type { Db } from '@backend/db/client';
-import { accounts, transactions } from '@backend/db/schema';
-import { activeWhere } from '@backend/db/soft-delete';
+import { accounts, securities, transactions } from '@backend/db/schema';
+import { activeWhere, softDelete } from '@backend/db/soft-delete';
 import { computeLots, FinancialError, type Tx } from '@backend/financial';
 import {
   CreateTransactionSchema,
+  EditTransactionSchema,
   isLotAffecting,
   isSecurityBearing,
   type CreateTransactionInput,
@@ -138,4 +139,92 @@ function toEngineCandidate(input: CreateTransactionInput, security_id: number, i
     fee_cents: input.fee_cents ?? null,
     currency_code: input.currency_code,
   };
+}
+
+function symbolOf(db: Db, securityId: number): string | undefined {
+  return db.select().from(securities).where(eq(securities.id, securityId)).get()?.symbol;
+}
+
+export function getActiveTransaction(db: Db, id: number): TransactionRow {
+  const row = db.select().from(transactions).where(activeWhere(transactions, eq(transactions.id, id))).limit(1).get();
+  if (!row) throw ingestionError('ingestion.transaction_not_found', `transaction ${id} not found`, { id });
+  return row;
+}
+
+function rowToCreateInput(row: TransactionRow): Record<string, unknown> {
+  return {
+    account_id: row.account_id,
+    symbol: undefined,
+    transaction_type: row.transaction_type,
+    transaction_date: row.transaction_date,
+    quantity: row.quantity,
+    price_cents: row.price_cents ?? undefined,
+    amount_cents: row.amount_cents,
+    fee_cents: row.fee_cents ?? undefined,
+    currency_code: row.currency_code,
+    notes: row.notes ?? undefined,
+  };
+}
+
+export function editTransaction(db: Db, id: number, rawPatch: unknown): WriteResult {
+  const before = getActiveTransaction(db, id);
+  const patch = EditTransactionSchema.parse(rawPatch);
+
+  const existingSymbol = before.security_id !== null ? symbolOf(db, before.security_id) : undefined;
+  const merged = { ...rowToCreateInput(before), symbol: existingSymbol, ...patch };
+  const input = CreateTransactionSchema.parse(merged);
+  const { security_id } = resolve(db, input);
+
+  if (isLotAffecting(input.transaction_type) && security_id !== null) {
+    const candidate = toEngineCandidate(input, security_id, id);
+    validateOverSell(db, input.account_id, security_id, candidate, id);
+  }
+
+  const dupes = findDuplicates(db, dedupFields(input, security_id)).filter((d) => d.id !== id);
+  const warnings: IngestionWarning[] = dupes.length
+    ? [{ code: 'duplicate', message: `matches ${dupes.length} existing transaction(s)`, context: { ids: dupes.map((d) => d.id) } }]
+    : [];
+
+  let transaction!: TransactionRow;
+  db.$client.transaction(() => {
+    transaction = db.update(transactions).set({
+      account_id: input.account_id,
+      security_id,
+      transaction_type: input.transaction_type,
+      transaction_date: input.transaction_date,
+      quantity: input.quantity,
+      price_cents: input.price_cents ?? null,
+      amount_cents: input.amount_cents,
+      fee_cents: input.fee_cents ?? null,
+      currency_code: input.currency_code,
+      notes: input.notes ?? null,
+      updated_at: new Date(),
+    }).where(eq(transactions.id, id)).returning().get();
+    writeAudit(db, { entity_type: 'transaction', entity_id: id, action: 'update', before, after: transaction });
+  })();
+
+  return { transaction, warnings };
+}
+
+export function softDeleteTransaction(db: Db, id: number): void {
+  const before = getActiveTransaction(db, id);
+
+  // Removing a lot-affecting row can strand a later sell — revalidate the
+  // remaining stream (this row excluded) before committing the delete.
+  if (isLotAffecting(before.transaction_type as TxTypeName) && before.security_id !== null) {
+    const remaining = loadTxHistory(db, before.account_id, before.security_id).filter((t) => t.id !== id);
+    try {
+      computeLots(remaining, { method: 'fifo' });
+    } catch (e) {
+      if (e instanceof FinancialError && e.code === 'domain.sell_exceeds_holdings') {
+        throw ingestionError('ingestion.sell_exceeds_holdings', `deleting transaction ${id} would cause a later sell to exceed holdings`, { id, ...e.context });
+      }
+      throw e;
+    }
+  }
+
+  db.$client.transaction(() => {
+    softDelete(db, transactions, eq(transactions.id, id));
+    writeAudit(db, { entity_type: 'transaction', entity_id: id, action: 'delete', before });
+  })();
 }
