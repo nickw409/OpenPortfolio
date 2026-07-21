@@ -128,3 +128,22 @@ export function resolveDrop(
   }
   return moves;
 }
+
+export function computeDropMoves(
+  tiles: TileItem[],
+  draggedId: number,
+  deltaPx: { x: number; y: number },
+  containerWidth: number,
+): TileMove[] {
+  const dragged = tiles.find((t) => t.id === draggedId);
+  if (!dragged || containerWidth <= 0) return [];
+  const metrics = gridMetrics(containerWidth);
+  const { dx, dy } = pixelDeltaToCells(deltaPx.x, deltaPx.y, metrics);
+  if (dx === 0 && dy === 0) return [];
+  const dropPos = clampPosition({
+    ...dragged.position,
+    x: dragged.position.x + dx,
+    y: dragged.position.y + dy,
+  });
+  return resolveDrop(tiles, draggedId, dropPos);
+}
