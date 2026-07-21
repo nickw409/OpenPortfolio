@@ -15,9 +15,7 @@ describe('RouteErrorBoundary', () => {
       404,
     );
     render(
-      <RouteErrorBoundary
-        {...({ error, reset: vi.fn() } as unknown as ErrorComponentProps)}
-      />,
+      <RouteErrorBoundary {...({ error, reset: vi.fn() } as unknown as ErrorComponentProps)} />,
     );
 
     expect(screen.getByText('accounts.not_found')).toBeInTheDocument();
@@ -27,9 +25,7 @@ describe('RouteErrorBoundary', () => {
   it('renders "render.unhandled" and the message for a plain Error', () => {
     const error = new Error('boom');
     render(
-      <RouteErrorBoundary
-        {...({ error, reset: vi.fn() } as unknown as ErrorComponentProps)}
-      />,
+      <RouteErrorBoundary {...({ error, reset: vi.fn() } as unknown as ErrorComponentProps)} />,
     );
 
     expect(screen.getByText('render.unhandled')).toBeInTheDocument();
@@ -40,11 +36,7 @@ describe('RouteErrorBoundary', () => {
     const user = userEvent.setup();
     const reset = vi.fn();
     const error = new Error('boom');
-    render(
-      <RouteErrorBoundary
-        {...({ error, reset } as unknown as ErrorComponentProps)}
-      />,
-    );
+    render(<RouteErrorBoundary {...({ error, reset } as unknown as ErrorComponentProps)} />);
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 

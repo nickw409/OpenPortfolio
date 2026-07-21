@@ -22,10 +22,7 @@ export function Sidebar(): JSX.Element {
 
   return (
     <aside
-      className={cn(
-        'flex flex-col border-r transition-[width]',
-        collapsed ? 'w-12' : 'w-56',
-      )}
+      className={cn('flex flex-col border-r transition-[width]', collapsed ? 'w-12' : 'w-56')}
       style={{ borderColor: 'var(--op-border)' }}
     >
       <div

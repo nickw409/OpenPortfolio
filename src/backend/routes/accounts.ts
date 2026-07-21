@@ -3,11 +3,7 @@ import { Hono } from 'hono';
 import type { Db } from '@backend/db/client';
 import { accounts } from '@backend/db/schema';
 import { activeFilter } from '@backend/db/soft-delete';
-import {
-  archiveAccount,
-  createAccount,
-  renameAccount,
-} from '@backend/services/accounts.service';
+import { archiveAccount, createAccount, renameAccount } from '@backend/services/accounts.service';
 import { AccountsResponseSchema, type AccountsResponse } from '@shared/schemas/account';
 
 export interface AccountsDeps {

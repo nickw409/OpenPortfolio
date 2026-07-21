@@ -11,8 +11,7 @@ import type { AccountsResponse } from '@shared/schemas/account';
 import { AccountsPage } from './accounts';
 
 vi.mock('@frontend/lib/api', async () => {
-  const actual =
-    await vi.importActual<typeof import('@frontend/lib/api')>('@frontend/lib/api');
+  const actual = await vi.importActual<typeof import('@frontend/lib/api')>('@frontend/lib/api');
   return {
     ...actual,
     apiGet: vi.fn(),
