@@ -55,11 +55,7 @@ export function nextAvailablePosition(
     for (let x = 0; x <= GRID_COLUMNS - w; x++) {
       const candidate = { x, y, w, h };
       const overlaps = existing.some(
-        (p) =>
-          x < p.x + p.w &&
-          x + w > p.x &&
-          y < p.y + p.h &&
-          y + h > p.y,
+        (p) => x < p.x + p.w && x + w > p.x && y < p.y + p.h && y + h > p.y,
       );
       if (!overlaps) return candidate;
     }

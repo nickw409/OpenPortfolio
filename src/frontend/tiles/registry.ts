@@ -59,21 +59,23 @@ export function validateTileConfig(type: string, raw: unknown): unknown {
 // They are replaced by real implementations as tiles are built out.
 
 function PlaceholderTile({ name }: { name: string }): JSX.Element {
-  return React.createElement('div', {
-    style: {
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '0.875rem',
-      color: 'var(--op-muted, #666)',
+  return React.createElement(
+    'div',
+    {
+      style: {
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '0.875rem',
+        color: 'var(--op-muted, #666)',
+      },
     },
-  }, name);
+    name,
+  );
 }
 
-function createPlaceholderComponent(
-  name: string,
-): ComponentType<TileComponentProps<unknown>> {
+function createPlaceholderComponent(name: string): ComponentType<TileComponentProps<unknown>> {
   return function PlaceholderComponent(): JSX.Element {
     return React.createElement(PlaceholderTile, { name });
   };
