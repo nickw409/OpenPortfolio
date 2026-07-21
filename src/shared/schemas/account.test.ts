@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { AccountSchema, AccountsResponseSchema } from './account';
+import {
+  AccountSchema,
+  AccountsResponseSchema,
+  CreateAccountSchema,
+  RenameAccountSchema,
+} from './account';
 
 describe('AccountSchema', () => {
   const valid = {
@@ -52,5 +57,22 @@ describe('AccountsResponseSchema', () => {
 
   it('rejects missing accounts key', () => {
     expect(AccountsResponseSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('CreateAccountSchema', () => {
+  it('defaults cost_basis_method to fifo and currency to USD', () => {
+    const r = CreateAccountSchema.parse({ name: 'Brokerage', tax_treatment: 'taxable' });
+    expect(r.cost_basis_method).toBe('fifo');
+    expect(r.currency_code).toBe('USD');
+  });
+  it('rejects an unknown tax treatment', () => {
+    expect(() => CreateAccountSchema.parse({ name: 'x', tax_treatment: 'roth' })).toThrow();
+  });
+});
+
+describe('RenameAccountSchema', () => {
+  it('accepts a partial rename', () => {
+    expect(RenameAccountSchema.parse({ name: 'New' }).name).toBe('New');
   });
 });
