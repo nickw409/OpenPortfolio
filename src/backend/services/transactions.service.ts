@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { Db } from '@backend/db/client';
 import { accounts, securities, transaction_tags, transactions } from '@backend/db/schema';
@@ -143,6 +143,12 @@ function toEngineCandidate(input: CreateTransactionInput, security_id: number, i
 
 function symbolOf(db: Db, securityId: number): string | undefined {
   return db.select().from(securities).where(eq(securities.id, securityId)).get()?.symbol;
+}
+
+export function listTransactions(db: Db, accountId?: number): TransactionRow[] {
+  const predicate = accountId === undefined ? undefined : eq(transactions.account_id, accountId);
+  return db.select().from(transactions).where(activeWhere(transactions, predicate))
+    .orderBy(asc(transactions.transaction_date), asc(transactions.id)).all();
 }
 
 export function getActiveTransaction(db: Db, id: number): TransactionRow {
