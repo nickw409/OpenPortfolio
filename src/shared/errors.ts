@@ -12,6 +12,16 @@ export const ERROR_CODES = [
   'service.migrating',
   'service.shutting_down',
   'internal.unknown',
+  'ingestion.sell_exceeds_holdings',
+  'ingestion.future_date',
+  'ingestion.invalid_quantity',
+  'ingestion.invalid_price',
+  'ingestion.account_not_found',
+  'ingestion.security_not_found',
+  'ingestion.transaction_not_found',
+  'ingestion.csv_parse_failed',
+  'ingestion.csv_mapping_incomplete',
+  'ingestion.commit_has_errors',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
