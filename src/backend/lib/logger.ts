@@ -3,9 +3,8 @@ import pino, { type Logger, type LoggerOptions } from 'pino';
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Paths grow as secrets are introduced (price-provider API keys in
-// workstream 6, loopback tokens if added in workstream 11). Empty for
-// now — no secrets exist in the v1.0 skeleton.
-const REDACT_PATHS: string[] = [];
+// workstream 6, loopback tokens if added in workstream 11).
+const REDACT_PATHS: string[] = ['provider.apiKey', 'polygon.apiKey'];
 
 export interface CreateLoggerOptions {
   level?: string;
