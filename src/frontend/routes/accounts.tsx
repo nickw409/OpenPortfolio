@@ -27,7 +27,7 @@ async function fetchAccounts(signal: AbortSignal): Promise<AccountsResponse> {
   return AccountsResponseSchema.parse(raw);
 }
 
-function AccountsPage(): JSX.Element {
+export function AccountsPage(): JSX.Element {
   const { data, isPending, error } = useQuery({
     queryKey: ['accounts'],
     queryFn: ({ signal }) => fetchAccounts(signal),
