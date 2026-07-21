@@ -9,6 +9,7 @@ import { createRequestLogger } from '@backend/lib/request-logger';
 import { createServerState } from '@backend/lib/server-state';
 import { createBootGate, registerShutdown } from '@backend/lib/shutdown';
 import { VERSION } from '@backend/lib/version';
+import { createAccountsRoute } from '@backend/routes/accounts';
 import { createHealthRoute } from '@backend/routes/health';
 import { createPricesRoute } from '@backend/routes/prices';
 import { createCpiRoute } from '@backend/routes/cpi';
@@ -22,6 +23,7 @@ app.use('*', createRequestLogger(logger));
 app.use('*', createBootGate(state));
 app.onError(createErrorHandler(logger));
 app.route('/api/v1/health', createHealthRoute({ db, state, version: VERSION }));
+app.route('/api/v1/accounts', createAccountsRoute({ db }));
 app.route('/api/v1/prices', createPricesRoute({ db, state, config: priceProviderConfigFromEnv() }));
 app.route('/api/v1/cpi', createCpiRoute({ db, state }));
 
