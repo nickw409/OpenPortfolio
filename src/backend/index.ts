@@ -12,6 +12,7 @@ import { VERSION } from '@backend/lib/version';
 import { createHealthRoute } from '@backend/routes/health';
 import { createPricesRoute } from '@backend/routes/prices';
 import { createCpiRoute } from '@backend/routes/cpi';
+import { createDashboardRoute } from '@backend/routes/dashboard';
 import { priceProviderConfigFromEnv } from '@backend/services/market-data/provider-registry';
 
 const db = createDb();
@@ -24,6 +25,7 @@ app.onError(createErrorHandler(logger));
 app.route('/api/v1/health', createHealthRoute({ db, state, version: VERSION }));
 app.route('/api/v1/prices', createPricesRoute({ db, state, config: priceProviderConfigFromEnv() }));
 app.route('/api/v1/cpi', createCpiRoute({ db, state }));
+app.route('/api/v1/dashboard', createDashboardRoute({ db, state }));
 
 const port = Number(process.env.PORT ?? 8787);
 // Loopback only — see docs/specs/2026-05-18-backend-api-design.md §T1.
