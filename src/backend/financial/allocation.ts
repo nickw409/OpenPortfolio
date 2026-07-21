@@ -75,11 +75,9 @@ export function computeAllocation(
     } else if (opts.dimension === 'account') {
       const entry = opts.accounts?.get(pos.account_id);
       if (!entry) {
-        throw new FinancialError(
-          'allocation.missing_account',
-          'account not in lookup map',
-          { id: pos.account_id },
-        );
+        throw new FinancialError('allocation.missing_account', 'account not in lookup map', {
+          id: pos.account_id,
+        });
       }
       key = entry.name;
     } else if (opts.dimension === 'security') {
@@ -104,10 +102,7 @@ export function computeAllocation(
 // opening buy carried. Lots whose opening buy had no tags land in a single
 // "(untagged)" bucket. The denominator is the portfolio total (each lot
 // counted once), so multi-tagged lots make the bucket weights sum past 100%.
-function allocateByTag(
-  snapshot: PortfolioSnapshot,
-  opts: AllocationOptions,
-): AllocationBreakdown {
+function allocateByTag(snapshot: PortfolioSnapshot, opts: AllocationOptions): AllocationBreakdown {
   const { lots, lotTags } = opts;
   if (!lots || !lotTags) {
     throw new RangeError("allocation dimension 'tag' requires both lots and lotTags");

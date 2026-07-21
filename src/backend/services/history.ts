@@ -29,10 +29,12 @@ export function loadTxHistory(db: Db, accountId: number, securityId: number): Tx
   const rows = db
     .select()
     .from(transactions)
-    .where(activeWhere(transactions, and(
-      eq(transactions.account_id, accountId),
-      eq(transactions.security_id, securityId),
-    )))
+    .where(
+      activeWhere(
+        transactions,
+        and(eq(transactions.account_id, accountId), eq(transactions.security_id, securityId)),
+      ),
+    )
     .orderBy(asc(transactions.transaction_date), asc(transactions.id))
     .all();
   return rows.map(rowToTx);

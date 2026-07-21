@@ -55,12 +55,14 @@ describe('createTransaction', () => {
 
   it('rejects a sell that exceeds holdings', () => {
     createTransaction(db, buy);
-    expect(() => createTransaction(db, {
-      ...buy,
-      transaction_type: 'sell',
-      quantity: 25,
-      transaction_date: '2020-02-01T00:00:00.000Z',
-    })).toThrow(/sell_exceeds_holdings|exceed/i);
+    expect(() =>
+      createTransaction(db, {
+        ...buy,
+        transaction_type: 'sell',
+        quantity: 25,
+        transaction_date: '2020-02-01T00:00:00.000Z',
+      }),
+    ).toThrow(/sell_exceeds_holdings|exceed/i);
   });
 
   it('rejects a backdated sell that strands a later sell', () => {
@@ -71,12 +73,14 @@ describe('createTransaction', () => {
       quantity: 8,
       transaction_date: '2020-03-01T00:00:00.000Z',
     });
-    expect(() => createTransaction(db, {
-      ...buy,
-      transaction_type: 'sell',
-      quantity: 5,
-      transaction_date: '2020-02-01T00:00:00.000Z',
-    })).toThrow(/exceed/i);
+    expect(() =>
+      createTransaction(db, {
+        ...buy,
+        transaction_type: 'sell',
+        quantity: 5,
+        transaction_date: '2020-02-01T00:00:00.000Z',
+      }),
+    ).toThrow(/exceed/i);
   });
 
   it('skips engine validation for a dividend', () => {
@@ -91,6 +95,8 @@ describe('createTransaction', () => {
   });
 
   it('throws account_not_found for a missing account', () => {
-    expect(() => createTransaction(db, { ...buy, account_id: 999 })).toThrow(/account_not_found|not found/i);
+    expect(() => createTransaction(db, { ...buy, account_id: 999 })).toThrow(
+      /account_not_found|not found/i,
+    );
   });
 });

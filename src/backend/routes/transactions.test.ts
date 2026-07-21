@@ -7,7 +7,7 @@ import { closeDb, createDb, type Db } from '@backend/db/client';
 import { createErrorHandler } from '@backend/lib/error-handler';
 import { logger } from '@backend/lib/logger';
 import { runMigrations } from '@backend/db/migrate';
-import { accounts } from '@backend/db/schema';
+import { accounts, tags } from '@backend/db/schema';
 
 import { createTransactionsRoute } from './transactions';
 
@@ -44,16 +44,17 @@ describe('transactions routes', () => {
     return a;
   }
 
-  const post = (body: unknown) => app().request('/api/v1/transactions', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const post = (body: unknown) =>
+    app().request('/api/v1/transactions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
   it('POST creates a transaction and returns warnings array', async () => {
     const res = await post(buy);
     expect(res.status).toBe(201);
-    const body = await res.json() as { transaction: { id: number }; warnings: unknown[] };
+    const body = (await res.json()) as { transaction: { id: number }; warnings: unknown[] };
     expect(body.transaction.id).toBeGreaterThan(0);
     expect(Array.isArray(body.warnings)).toBe(true);
   });
@@ -67,12 +68,57 @@ describe('transactions routes', () => {
       transaction_date: '2020-02-01T00:00:00.000Z',
     });
     expect(res.status).toBe(409);
-    expect((await res.json() as { code: string }).code).toBe('ingestion.sell_exceeds_holdings');
+    expect(((await res.json()) as { code: string }).code).toBe('ingestion.sell_exceeds_holdings');
   });
 
   it('GET lists transactions', async () => {
     await post(buy);
     const res = await app().request('/api/v1/transactions?account_id=1');
-    expect((await res.json() as { transactions: unknown[] }).transactions).toHaveLength(1);
+    expect(((await res.json()) as { transactions: unknown[] }).transactions).toHaveLength(1);
+  });
+
+  it('PATCH edits a transaction', async () => {
+    const created = (await (await post(buy)).json()) as { transaction: { id: number } };
+    const res = await app().request(`/api/v1/transactions/${created.transaction.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ quantity: 12 }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { transaction: { quantity: number } };
+    expect(body.transaction.quantity).toBe(12);
+  });
+
+  it('DELETE soft-deletes a transaction', async () => {
+    const created = (await (await post(buy)).json()) as { transaction: { id: number } };
+    const res = await app().request(`/api/v1/transactions/${created.transaction.id}`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it('POST /bulk/delete soft-deletes multiple transactions', async () => {
+    const a = (await (await post(buy)).json()) as { transaction: { id: number } };
+    const b = (await (
+      await post({ ...buy, transaction_date: '2020-01-03T00:00:00.000Z' })
+    ).json()) as { transaction: { id: number } };
+    const res = await app().request('/api/v1/transactions/bulk/delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [a.transaction.id, b.transaction.id] }),
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('POST /bulk/retag adds a tag link', async () => {
+    const created = (await (await post(buy)).json()) as { transaction: { id: number } };
+    db.insert(tags).values({ name: 'Core' }).run();
+    const res = await app().request('/api/v1/transactions/bulk/retag', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [created.transaction.id], add: [1], remove: [] }),
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { retagged: number }).retagged).toBe(1);
   });
 });

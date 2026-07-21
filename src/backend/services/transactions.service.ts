@@ -33,8 +33,16 @@ export interface WriteResult {
 }
 
 export function getActiveAccount(db: Db, id: number): AccountRow {
-  const row = db.select().from(accounts).where(activeWhere(accounts, eq(accounts.id, id))).limit(1).get();
-  if (!row) throw ingestionError('ingestion.account_not_found', `account ${id} not found`, { account_id: id });
+  const row = db
+    .select()
+    .from(accounts)
+    .where(activeWhere(accounts, eq(accounts.id, id)))
+    .limit(1)
+    .get();
+  if (!row)
+    throw ingestionError('ingestion.account_not_found', `account ${id} not found`, {
+      account_id: id,
+    });
   return row;
 }
 
@@ -97,7 +105,13 @@ export function createTransaction(db: Db, raw: unknown): WriteResult {
 
   const dupes = findDuplicates(db, dedupFields(input, security_id));
   const warnings: IngestionWarning[] = dupes.length
-    ? [{ code: 'duplicate', message: `matches ${dupes.length} existing transaction(s)`, context: { ids: dupes.map((d) => d.id) } }]
+    ? [
+        {
+          code: 'duplicate',
+          message: `matches ${dupes.length} existing transaction(s)`,
+          context: { ids: dupes.map((d) => d.id) },
+        },
+      ]
     : [];
 
   if (isLotAffecting(input.transaction_type) && security_id !== null) {
@@ -108,19 +122,28 @@ export function createTransaction(db: Db, raw: unknown): WriteResult {
 
   let transaction!: TransactionRow;
   db.$client.transaction(() => {
-    transaction = db.insert(transactions).values({
-      account_id: input.account_id,
-      security_id,
-      transaction_type: input.transaction_type,
-      transaction_date: input.transaction_date,
-      quantity: input.quantity,
-      price_cents: input.price_cents ?? null,
-      amount_cents: input.amount_cents,
-      fee_cents: input.fee_cents ?? null,
-      currency_code: input.currency_code,
-      notes: input.notes ?? null,
-    }).returning().get();
-    writeAudit(db, { entity_type: 'transaction', entity_id: transaction.id, action: 'insert', after: transaction });
+    transaction = db
+      .insert(transactions)
+      .values({
+        account_id: input.account_id,
+        security_id,
+        transaction_type: input.transaction_type,
+        transaction_date: input.transaction_date,
+        quantity: input.quantity,
+        price_cents: input.price_cents ?? null,
+        amount_cents: input.amount_cents,
+        fee_cents: input.fee_cents ?? null,
+        currency_code: input.currency_code,
+        notes: input.notes ?? null,
+      })
+      .returning()
+      .get();
+    writeAudit(db, {
+      entity_type: 'transaction',
+      entity_id: transaction.id,
+      action: 'insert',
+      after: transaction,
+    });
   })();
 
   return { transaction, warnings };
@@ -147,13 +170,23 @@ function symbolOf(db: Db, securityId: number): string | undefined {
 
 export function listTransactions(db: Db, accountId?: number): TransactionRow[] {
   const predicate = accountId === undefined ? undefined : eq(transactions.account_id, accountId);
-  return db.select().from(transactions).where(activeWhere(transactions, predicate))
-    .orderBy(asc(transactions.transaction_date), asc(transactions.id)).all();
+  return db
+    .select()
+    .from(transactions)
+    .where(activeWhere(transactions, predicate))
+    .orderBy(asc(transactions.transaction_date), asc(transactions.id))
+    .all();
 }
 
 export function getActiveTransaction(db: Db, id: number): TransactionRow {
-  const row = db.select().from(transactions).where(activeWhere(transactions, eq(transactions.id, id))).limit(1).get();
-  if (!row) throw ingestionError('ingestion.transaction_not_found', `transaction ${id} not found`, { id });
+  const row = db
+    .select()
+    .from(transactions)
+    .where(activeWhere(transactions, eq(transactions.id, id)))
+    .limit(1)
+    .get();
+  if (!row)
+    throw ingestionError('ingestion.transaction_not_found', `transaction ${id} not found`, { id });
   return row;
 }
 
@@ -188,25 +221,42 @@ export function editTransaction(db: Db, id: number, rawPatch: unknown): WriteRes
 
   const dupes = findDuplicates(db, dedupFields(input, security_id)).filter((d) => d.id !== id);
   const warnings: IngestionWarning[] = dupes.length
-    ? [{ code: 'duplicate', message: `matches ${dupes.length} existing transaction(s)`, context: { ids: dupes.map((d) => d.id) } }]
+    ? [
+        {
+          code: 'duplicate',
+          message: `matches ${dupes.length} existing transaction(s)`,
+          context: { ids: dupes.map((d) => d.id) },
+        },
+      ]
     : [];
 
   let transaction!: TransactionRow;
   db.$client.transaction(() => {
-    transaction = db.update(transactions).set({
-      account_id: input.account_id,
-      security_id,
-      transaction_type: input.transaction_type,
-      transaction_date: input.transaction_date,
-      quantity: input.quantity,
-      price_cents: input.price_cents ?? null,
-      amount_cents: input.amount_cents,
-      fee_cents: input.fee_cents ?? null,
-      currency_code: input.currency_code,
-      notes: input.notes ?? null,
-      updated_at: new Date(),
-    }).where(eq(transactions.id, id)).returning().get();
-    writeAudit(db, { entity_type: 'transaction', entity_id: id, action: 'update', before, after: transaction });
+    transaction = db
+      .update(transactions)
+      .set({
+        account_id: input.account_id,
+        security_id,
+        transaction_type: input.transaction_type,
+        transaction_date: input.transaction_date,
+        quantity: input.quantity,
+        price_cents: input.price_cents ?? null,
+        amount_cents: input.amount_cents,
+        fee_cents: input.fee_cents ?? null,
+        currency_code: input.currency_code,
+        notes: input.notes ?? null,
+        updated_at: new Date(),
+      })
+      .where(eq(transactions.id, id))
+      .returning()
+      .get();
+    writeAudit(db, {
+      entity_type: 'transaction',
+      entity_id: id,
+      action: 'update',
+      before,
+      after: transaction,
+    });
   })();
 
   return { transaction, warnings };
@@ -218,12 +268,18 @@ export function softDeleteTransaction(db: Db, id: number): void {
   // Removing a lot-affecting row can strand a later sell — revalidate the
   // remaining stream (this row excluded) before committing the delete.
   if (isLotAffecting(before.transaction_type as TxTypeName) && before.security_id !== null) {
-    const remaining = loadTxHistory(db, before.account_id, before.security_id).filter((t) => t.id !== id);
+    const remaining = loadTxHistory(db, before.account_id, before.security_id).filter(
+      (t) => t.id !== id,
+    );
     try {
       computeLots(remaining, { method: 'fifo' });
     } catch (e) {
       if (e instanceof FinancialError && e.code === 'domain.sell_exceeds_holdings') {
-        throw ingestionError('ingestion.sell_exceeds_holdings', `deleting transaction ${id} would cause a later sell to exceed holdings`, { id, ...e.context });
+        throw ingestionError(
+          'ingestion.sell_exceeds_holdings',
+          `deleting transaction ${id} would cause a later sell to exceed holdings`,
+          { id, ...e.context },
+        );
       }
       throw e;
     }
@@ -241,40 +297,67 @@ export function bulkSoftDelete(db: Db, ids: number[]): void {
   db.$client.transaction(() => {
     for (const before of rows) {
       if (isLotAffecting(before.transaction_type as TxTypeName) && before.security_id !== null) {
-        const remaining = loadTxHistory(db, before.account_id, before.security_id)
-          .filter((t) => t.id !== before.id && !deleted.has(t.id));
+        const remaining = loadTxHistory(db, before.account_id, before.security_id).filter(
+          (t) => t.id !== before.id && !deleted.has(t.id),
+        );
         try {
           computeLots(remaining, { method: 'fifo' });
         } catch (e) {
           if (e instanceof FinancialError && e.code === 'domain.sell_exceeds_holdings') {
-            throw ingestionError('ingestion.sell_exceeds_holdings', `deleting transaction ${before.id} would cause a later sell to exceed holdings`, { id: before.id });
+            throw ingestionError(
+              'ingestion.sell_exceeds_holdings',
+              `deleting transaction ${before.id} would cause a later sell to exceed holdings`,
+              { id: before.id },
+            );
           }
           throw e;
         }
       }
       softDelete(db, transactions, eq(transactions.id, before.id));
-      writeAudit(db, { entity_type: 'transaction', entity_id: before.id, action: 'delete', before });
+      writeAudit(db, {
+        entity_type: 'transaction',
+        entity_id: before.id,
+        action: 'delete',
+        before,
+      });
       deleted.add(before.id);
     }
   })();
 }
 
-export interface BulkRetagParams { ids: number[]; add: number[]; remove: number[]; }
+export interface BulkRetagParams {
+  ids: number[];
+  add: number[];
+  remove: number[];
+}
 
 export function bulkRetag(db: Db, params: BulkRetagParams): void {
   const rows = params.ids.map((id) => getActiveTransaction(db, id));
   db.$client.transaction(() => {
     for (const row of rows) {
       for (const tagId of params.add) {
-        db.insert(transaction_tags).values({ transaction_id: row.id, tag_id: tagId }).onConflictDoNothing().run();
+        db.insert(transaction_tags)
+          .values({ transaction_id: row.id, tag_id: tagId })
+          .onConflictDoNothing()
+          .run();
       }
       if (params.remove.length > 0) {
-        db.delete(transaction_tags).where(and(
-          eq(transaction_tags.transaction_id, row.id),
-          inArray(transaction_tags.tag_id, params.remove),
-        )).run();
+        db.delete(transaction_tags)
+          .where(
+            and(
+              eq(transaction_tags.transaction_id, row.id),
+              inArray(transaction_tags.tag_id, params.remove),
+            ),
+          )
+          .run();
       }
-      writeAudit(db, { entity_type: 'transaction', entity_id: row.id, action: 'update', before: { tags: 'retag' }, after: { add: params.add, remove: params.remove } });
+      writeAudit(db, {
+        entity_type: 'transaction',
+        entity_id: row.id,
+        action: 'update',
+        before: { tags: 'retag' },
+        after: { add: params.add, remove: params.remove },
+      });
     }
   })();
 }

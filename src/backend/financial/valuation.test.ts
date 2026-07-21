@@ -2,7 +2,17 @@ import { ofCents } from '@shared/money';
 
 import { FinancialError } from './errors';
 import { computeValuationSeries } from './valuation';
-import { buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns, type ValuationFixture } from './test-helpers';
+import {
+  buildPriceHistory,
+  buildTx,
+  D,
+  dateD,
+  loadFixture,
+  resetTxIds,
+  revivePrices,
+  reviveTxns,
+  type ValuationFixture,
+} from './test-helpers';
 
 beforeEach(() => resetTxIds());
 
@@ -122,8 +132,20 @@ describe('computeValuationSeries — multi-security portfolio', () => {
       }),
     ];
     const prices = buildPriceHistory([
-      [1, [['2026-01-01', 1000], ['2026-01-02', 1100]]],
-      [2, [['2026-01-01', 2000], ['2026-01-02', 1900]]],
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-02', 1100],
+        ],
+      ],
+      [
+        2,
+        [
+          ['2026-01-01', 2000],
+          ['2026-01-02', 1900],
+        ],
+      ],
     ]);
     const series = computeValuationSeries(
       txns,
@@ -187,8 +209,8 @@ describe('computeValuationSeries — external cashflows', () => {
       { scope: 'portfolio' },
     );
     expect(series.points.map((p) => p.external_cashflow_cents)).toEqual([
-      D(0),    // day 1 — nothing
-      D(500),  // day 2 — deposit
+      D(0), // day 1 — nothing
+      D(500), // day 2 — deposit
       D(-100), // day 3 — withdrawal (transfer_in is internal at portfolio scope)
     ]);
   });
@@ -244,9 +266,9 @@ describe('computeValuationSeries — external cashflows', () => {
       { scope: { account_id: 1 } },
     );
     expect(series.points.map((p) => p.external_cashflow_cents)).toEqual([
-      D(500),  // day 1 — deposit to account 1
-      D(100),  // day 2 — transfer_in counted as deposit for account 1
-      D(-50),  // day 3 — transfer_out counted as withdrawal for account 1
+      D(500), // day 1 — deposit to account 1
+      D(100), // day 2 — transfer_in counted as deposit for account 1
+      D(-50), // day 3 — transfer_out counted as withdrawal for account 1
     ]);
   });
 
@@ -329,7 +351,13 @@ describe('computeValuationSeries — TR index', () => {
       }),
     ];
     const prices = buildPriceHistory([
-      [1, [['2026-01-01', 1000], ['2026-01-02', 1000]]],
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-02', 1000],
+        ],
+      ],
     ]);
     const series = computeValuationSeries(
       txns,
@@ -352,7 +380,13 @@ describe('computeValuationSeries — TR index', () => {
       }),
     ];
     const prices = buildPriceHistory([
-      [1, [['2026-01-01', 1000], ['2026-01-02', 1100]]],
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-02', 1100],
+        ],
+      ],
     ]);
     const series = computeValuationSeries(
       txns,
@@ -361,7 +395,7 @@ describe('computeValuationSeries — TR index', () => {
       { scope: 'portfolio' },
     );
     expect(series.points[0]!.tr_index).toBe(1.0);
-    expect(series.points[1]!.tr_index).toBeCloseTo(1.10, 10);
+    expect(series.points[1]!.tr_index).toBeCloseTo(1.1, 10);
   });
 
   it('strips deposit from daily return — start-of-day cashflow convention', () => {
@@ -398,7 +432,13 @@ describe('computeValuationSeries — TR index', () => {
       }),
     ];
     const prices = buildPriceHistory([
-      [1, [['2026-01-01', 1000], ['2026-01-02', 1100]]],
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-02', 1100],
+        ],
+      ],
     ]);
     const series = computeValuationSeries(
       txns,
@@ -411,7 +451,7 @@ describe('computeValuationSeries — TR index', () => {
     //   base = V_open + CF = 1000 + 1000 = 2000
     //   daily_return = 2200 / 2000 − 1 = +10%
     //   tr_index[1] = 1.0 × 1.10 = 1.10
-    expect(series.points[1]!.tr_index).toBeCloseTo(1.10, 10);
+    expect(series.points[1]!.tr_index).toBeCloseTo(1.1, 10);
     expect(series.points[1]!.external_cashflow_cents).toBe(D(1000));
   });
 
@@ -436,14 +476,22 @@ describe('computeValuationSeries — TR index', () => {
         amount_cents: D(1000),
       }),
     ];
-    const prices = buildPriceHistory([[1, [['2026-01-03', 1000], ['2026-01-04', 1100]]]]);
+    const prices = buildPriceHistory([
+      [
+        1,
+        [
+          ['2026-01-03', 1000],
+          ['2026-01-04', 1100],
+        ],
+      ],
+    ]);
     const series = computeValuationSeries(
       txns,
       prices,
       { from: dateD('2026-01-01'), to: dateD('2026-01-04') },
       { scope: 'portfolio' },
     );
-    expect(series.points.map((p) => p.tr_index)).toEqual([1.0, 1.0, 1.0, expect.closeTo(1.10, 10)]);
+    expect(series.points.map((p) => p.tr_index)).toEqual([1.0, 1.0, 1.0, expect.closeTo(1.1, 10)]);
   });
 });
 
@@ -548,7 +596,15 @@ describe('computeValuationSeries — price staleness', () => {
         amount_cents: D(1100),
       }),
     ];
-    const prices = buildPriceHistory([[1, [['2026-01-01', 1000], ['2026-01-02', 1100]]]]);
+    const prices = buildPriceHistory([
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-02', 1100],
+        ],
+      ],
+    ]);
     // Day 30 is far past the staleness window, but no security is held.
     expect(() =>
       computeValuationSeries(
@@ -576,7 +632,7 @@ describe('fixture: daily-twr-simple', () => {
     expect(series.points[0]!.market_value_cents).toBe(ofCents(1_000_000));
     expect(series.points[series.points.length - 1]!.market_value_cents).toBe(ofCents(0));
     // tr_index right before the sell should be ~1.10.
-    expect(series.points[29]!.tr_index).toBeCloseTo(1.10, 8);
+    expect(series.points[29]!.tr_index).toBeCloseTo(1.1, 8);
   });
 });
 
@@ -596,7 +652,7 @@ describe('fixture: pre-funding-days', () => {
     for (let i = 0; i < 11; i++) {
       expect(series.points[i]!.tr_index).toBe(1.0);
     }
-    expect(series.points[11]!.tr_index).toBeCloseTo(1.10, 8);
+    expect(series.points[11]!.tr_index).toBeCloseTo(1.1, 8);
   });
 });
 

@@ -28,11 +28,18 @@ export interface CanonicalRow {
 
 const OPTIONAL_FIELDS = ['symbol', 'quantity', 'price', 'amount', 'fee', 'notes'] as const;
 
-export function applyMapping(rows: Record<string, string>[], mapping: ColumnMapping): CanonicalRow[] {
+export function applyMapping(
+  rows: Record<string, string>[],
+  mapping: ColumnMapping,
+): CanonicalRow[] {
   for (const required of ['transaction_type', 'transaction_date'] as const) {
     const header = mapping[required];
     if (!header || (rows.length > 0 && !(header in rows[0]!))) {
-      throw ingestionError('ingestion.csv_mapping_incomplete', `missing required column for ${required}`, { field: required, header });
+      throw ingestionError(
+        'ingestion.csv_mapping_incomplete',
+        `missing required column for ${required}`,
+        { field: required, header },
+      );
     }
   }
   return rows.map((row, sourceIndex) => {
@@ -63,8 +70,10 @@ export function canonicalToCreateInput(
   if (row.symbol) out.symbol = row.symbol;
   if (row.notes) out.notes = row.notes;
   if (row.quantity !== undefined && row.quantity !== '') out.quantity = Number(row.quantity);
-  if (row.amount !== undefined && row.amount !== '') out.amount_cents = Math.abs(parseMoney(row.amount));
-  if (row.price !== undefined && row.price !== '') out.price_cents = Math.abs(parseMoney(row.price));
+  if (row.amount !== undefined && row.amount !== '')
+    out.amount_cents = Math.abs(parseMoney(row.amount));
+  if (row.price !== undefined && row.price !== '')
+    out.price_cents = Math.abs(parseMoney(row.price));
   if (row.fee !== undefined && row.fee !== '') out.fee_cents = Math.abs(parseMoney(row.fee));
   return out;
 }

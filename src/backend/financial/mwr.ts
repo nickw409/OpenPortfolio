@@ -53,8 +53,7 @@ function buildCashflows(series: ValuationSeries): {
   // End value is likewise the closing market value — day-N cashflows are
   // already in that value and must not be double-subtracted.
   const endVal = Number(last.market_value_cents);
-  const total_years =
-    (last.date.getTime() - first.date.getTime()) / 86_400_000 / DAYS_PER_YEAR;
+  const total_years = (last.date.getTime() - first.date.getTime()) / 86_400_000 / DAYS_PER_YEAR;
   return { start_value_cents: startVal, end_value_cents: endVal, flows, total_years };
 }
 
@@ -90,12 +89,7 @@ type BisectResult =
 // hitting tolerance (numerically intractable but a root may exist).
 // 100 iterations gives ~log2(10.99/1e-10) ≈ 37 iterations to reach REL_R_TOL,
 // so the cap is generous; convergence is always by tolerance, not by count.
-function bisect(
-  start: number,
-  end: number,
-  flows: Cashflow[],
-  years: number,
-): BisectResult {
+function bisect(start: number, end: number, flows: Cashflow[], years: number): BisectResult {
   let lo = -0.99;
   let hi = 10.0;
   let fLo = npv(lo, start, end, flows, years);
@@ -108,7 +102,7 @@ function bisect(
   for (let i = 0; i < 100; i++) {
     mid = (lo + hi) / 2;
     const fMid = npv(mid, start, end, flows, years);
-    if (Math.abs(fMid) < ABS_NPV_TOL_CENTS || (hi - lo) < REL_R_TOL) {
+    if (Math.abs(fMid) < ABS_NPV_TOL_CENTS || hi - lo < REL_R_TOL) {
       return { kind: 'converged', r: mid, iterations: i + 1 };
     }
     if (Math.sign(fMid) === Math.sign(fLo)) {
@@ -124,19 +118,22 @@ function bisect(
 
 export function computeMoneyWeightedReturn(series: ValuationSeries): MwrResult {
   if (series.points.length === 0) throw new RangeError('series.points must be non-empty');
-  const { start_value_cents, end_value_cents, flows, total_years: totalYears } = buildCashflows(series);
+  const {
+    start_value_cents,
+    end_value_cents,
+    flows,
+    total_years: totalYears,
+  } = buildCashflows(series);
   if (start_value_cents <= 0) {
-    throw new FinancialError(
-      'irr.bad_initial_state',
-      'IRR requires a positive starting value',
-      { scope: series.scope, start_value_cents },
-    );
+    throw new FinancialError('irr.bad_initial_state', 'IRR requires a positive starting value', {
+      scope: series.scope,
+      start_value_cents,
+    });
   }
 
   // Seed from TWR — usually within a few percent of IRR.
   const twr = computeTimeWeightedReturn(series);
-  const seedAnnual =
-    twr.annualized_pct !== null ? twr.annualized_pct / 100 : twr.return_pct / 100;
+  const seedAnnual = twr.annualized_pct !== null ? twr.annualized_pct / 100 : twr.return_pct / 100;
   let r = Number.isFinite(seedAnnual) ? seedAnnual : 0;
 
   let iter = 0;

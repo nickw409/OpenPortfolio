@@ -65,9 +65,7 @@ describe('createRequestLogger', () => {
     const app = new Hono();
     app.use('*', createRequestLogger(logger));
     // Simulate bootGate short-circuit during shutdown:
-    app.use('*', async (c) =>
-      c.json({ code: 'service.shutting_down', message: 'draining' }, 503),
-    );
+    app.use('*', async (c) => c.json({ code: 'service.shutting_down', message: 'draining' }, 503));
     app.get('/api/v1/accounts', (c) => c.json({ ok: true }));
 
     const res = await app.request('/api/v1/accounts');

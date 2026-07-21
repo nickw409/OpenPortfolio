@@ -3,8 +3,26 @@
   "description": "Four lots across two securities: two tagged 'core', one tagged 'core'+'long-term', one untagged. Tag weights sum past 100% (attribution, not partition).",
   "snapshot": {
     "positions": [
-      { "account_id": 1, "security_id": 1, "quantity": 100, "cost_basis_cents": 11000, "current_price_cents": 120, "market_value_cents": 12000, "unrealized_gain_cents": 1000, "currency_code": "USD" },
-      { "account_id": 1, "security_id": 2, "quantity": 200, "cost_basis_cents": 17000, "current_price_cents": 100, "market_value_cents": 20000, "unrealized_gain_cents": 3000, "currency_code": "USD" }
+      {
+        "account_id": 1,
+        "security_id": 1,
+        "quantity": 100,
+        "cost_basis_cents": 11000,
+        "current_price_cents": 120,
+        "market_value_cents": 12000,
+        "unrealized_gain_cents": 1000,
+        "currency_code": "USD"
+      },
+      {
+        "account_id": 1,
+        "security_id": 2,
+        "quantity": 200,
+        "cost_basis_cents": 17000,
+        "current_price_cents": 100,
+        "market_value_cents": 20000,
+        "unrealized_gain_cents": 3000,
+        "currency_code": "USD"
+      }
     ],
     "total_cost_basis_cents": 28000,
     "total_market_value_cents": 32000,
@@ -12,10 +30,42 @@
     "as_of": "2026-12-31T00:00:00Z"
   },
   "lots": [
-    { "sourceTxId": 1, "account_id": 1, "security_id": 1, "acquired_at": "2026-01-01T00:00:00Z", "quantity": 50, "cost_basis_cents": 5000, "currency_code": "USD" },
-    { "sourceTxId": 2, "account_id": 1, "security_id": 1, "acquired_at": "2026-02-01T00:00:00Z", "quantity": 50, "cost_basis_cents": 6000, "currency_code": "USD" },
-    { "sourceTxId": 3, "account_id": 1, "security_id": 2, "acquired_at": "2026-03-01T00:00:00Z", "quantity": 100, "cost_basis_cents": 8000, "currency_code": "USD" },
-    { "sourceTxId": 4, "account_id": 1, "security_id": 2, "acquired_at": "2026-04-01T00:00:00Z", "quantity": 100, "cost_basis_cents": 9000, "currency_code": "USD" }
+    {
+      "sourceTxId": 1,
+      "account_id": 1,
+      "security_id": 1,
+      "acquired_at": "2026-01-01T00:00:00Z",
+      "quantity": 50,
+      "cost_basis_cents": 5000,
+      "currency_code": "USD"
+    },
+    {
+      "sourceTxId": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "acquired_at": "2026-02-01T00:00:00Z",
+      "quantity": 50,
+      "cost_basis_cents": 6000,
+      "currency_code": "USD"
+    },
+    {
+      "sourceTxId": 3,
+      "account_id": 1,
+      "security_id": 2,
+      "acquired_at": "2026-03-01T00:00:00Z",
+      "quantity": 100,
+      "cost_basis_cents": 8000,
+      "currency_code": "USD"
+    },
+    {
+      "sourceTxId": 4,
+      "account_id": 1,
+      "security_id": 2,
+      "acquired_at": "2026-04-01T00:00:00Z",
+      "quantity": 100,
+      "cost_basis_cents": 9000,
+      "currency_code": "USD"
+    }
   ],
   "lotTags": {
     "1": ["core"],

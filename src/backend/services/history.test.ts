@@ -18,16 +18,20 @@ describe('loadTxHistory', () => {
     db = createDb(join(dir, 't.sqlite'));
     runMigrations(db);
     db.insert(accounts).values({ name: 'A', tax_treatment: 'taxable' }).run();
-    db.insert(securities).values({ symbol: 'AAPL', exchange: 'UNKNOWN', asset_class: 'equity' }).run();
-    db.insert(transactions).values({
-      account_id: 1,
-      security_id: 1,
-      transaction_type: 'buy',
-      transaction_date: new Date('2020-01-02'),
-      quantity: 10,
-      price_cents: ofCents(15000),
-      amount_cents: ofCents(150000),
-    }).run();
+    db.insert(securities)
+      .values({ symbol: 'AAPL', exchange: 'UNKNOWN', asset_class: 'equity' })
+      .run();
+    db.insert(transactions)
+      .values({
+        account_id: 1,
+        security_id: 1,
+        transaction_type: 'buy',
+        transaction_date: new Date('2020-01-02'),
+        quantity: 10,
+        price_cents: ofCents(15000),
+        amount_cents: ofCents(150000),
+      })
+      .run();
   });
 
   afterEach(() => {

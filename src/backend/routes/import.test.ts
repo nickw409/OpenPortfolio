@@ -11,7 +11,14 @@ import { accounts } from '@backend/db/schema';
 
 import { createImportRoute } from './import';
 
-const mapping = { transaction_date: 'D', transaction_type: 'T', symbol: 'S', quantity: 'Q', price: 'P', amount: 'A' };
+const mapping = {
+  transaction_date: 'D',
+  transaction_type: 'T',
+  symbol: 'S',
+  quantity: 'Q',
+  price: 'P',
+  amount: 'A',
+};
 const text = ['D,T,S,Q,P,A', '2020-01-02,buy,AAPL,10,150.00,1500.00'].join('\n');
 
 describe('import routes', () => {
@@ -39,19 +46,21 @@ describe('import routes', () => {
 
   it('preview returns per-row results', async () => {
     const res = await app().request('/api/v1/import/csv/preview', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text, account_id: 1, mapping }),
     });
     expect(res.status).toBe(200);
-    expect((await res.json() as { summary: { total: number } }).summary.total).toBe(1);
+    expect(((await res.json()) as { summary: { total: number } }).summary.total).toBe(1);
   });
 
   it('commit inserts accepted rows', async () => {
     const res = await app().request('/api/v1/import/csv/commit', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text, account_id: 1, mapping, accepted_indexes: [0] }),
     });
     expect(res.status).toBe(200);
-    expect((await res.json() as { inserted: number }).inserted).toBe(1);
+    expect(((await res.json()) as { inserted: number }).inserted).toBe(1);
   });
 });

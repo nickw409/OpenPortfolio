@@ -49,7 +49,13 @@ describe('bulk operations', () => {
       amount_cents: 2000,
     }).transaction;
     bulkSoftDelete(db, [a.id, b.id]);
-    expect(db.select().from(transactions).all().every((t) => t.deleted_at !== null)).toBe(true);
+    expect(
+      db
+        .select()
+        .from(transactions)
+        .all()
+        .every((t) => t.deleted_at !== null),
+    ).toBe(true);
   });
 
   it('bulk retag adds and removes tag links', () => {
@@ -70,6 +76,12 @@ describe('bulk operations', () => {
       transaction_date: '2020-03-01T00:00:00.000Z',
     }).transaction;
     expect(() => bulkSoftDelete(db, [b.id, s.id])).toThrow(/exceed/i);
-    expect(db.select().from(transactions).all().every((t) => t.deleted_at === null)).toBe(true);
+    expect(
+      db
+        .select()
+        .from(transactions)
+        .all()
+        .every((t) => t.deleted_at === null),
+    ).toBe(true);
   });
 });

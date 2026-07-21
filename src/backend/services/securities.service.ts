@@ -30,10 +30,14 @@ export function resolveSecurity(
   const existing = findSecurityBySymbol(db, symbol, opts.exchange);
   if (existing) return { security: existing, created: false };
 
-  const security = db.insert(securities).values({
-    symbol,
-    exchange: opts.exchange ?? 'UNKNOWN',
-    asset_class: opts.asset_class ?? 'equity',
-  }).returning().get();
+  const security = db
+    .insert(securities)
+    .values({
+      symbol,
+      exchange: opts.exchange ?? 'UNKNOWN',
+      asset_class: opts.asset_class ?? 'equity',
+    })
+    .returning()
+    .get();
   return { security, created: true };
 }

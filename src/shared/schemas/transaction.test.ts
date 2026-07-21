@@ -1,11 +1,18 @@
 import {
-  CreateTransactionSchema, isLotAffecting, isSecurityBearing, TX_TYPES,
+  CreateTransactionSchema,
+  isLotAffecting,
+  isSecurityBearing,
+  TX_TYPES,
 } from './transaction';
 
 const base = {
-  account_id: 1, transaction_type: 'buy', symbol: 'AAPL',
+  account_id: 1,
+  transaction_type: 'buy',
+  symbol: 'AAPL',
   transaction_date: '2020-01-02T00:00:00.000Z',
-  quantity: 10, price_cents: 15000, amount_cents: 150000,
+  quantity: 10,
+  price_cents: 15000,
+  amount_cents: 150000,
 };
 
 describe('CreateTransactionSchema', () => {
@@ -31,8 +38,10 @@ describe('CreateTransactionSchema', () => {
 
   it('accepts a deposit with no symbol and no security', () => {
     const r = CreateTransactionSchema.parse({
-      account_id: 1, transaction_type: 'deposit',
-      transaction_date: '2020-01-02T00:00:00.000Z', amount_cents: 500000,
+      account_id: 1,
+      transaction_type: 'deposit',
+      transaction_date: '2020-01-02T00:00:00.000Z',
+      amount_cents: 500000,
     });
     expect(r.transaction_type).toBe('deposit');
   });

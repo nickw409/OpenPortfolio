@@ -1,7 +1,10 @@
 import type { Db } from '@backend/db/client';
 import { computeLots, FinancialError, type Tx } from '@backend/financial';
 import {
-  CreateTransactionSchema, isLotAffecting, isSecurityBearing, type TxTypeName,
+  CreateTransactionSchema,
+  isLotAffecting,
+  isSecurityBearing,
+  type TxTypeName,
 } from '@shared/schemas/transaction';
 
 import { findDuplicates } from '../dedup';
@@ -42,7 +45,10 @@ interface ImportParams {
   mapping?: ColumnMapping;
 }
 
-function resolveMapping(params: ImportParams): { mapping: ColumnMapping; normalizeType?: (raw: string) => TxTypeName | null } {
+function resolveMapping(params: ImportParams): {
+  mapping: ColumnMapping;
+  normalizeType?: (raw: string) => TxTypeName | null;
+} {
   if (params.broker) {
     const preset = getPreset(params.broker);
     return { mapping: preset.mapping, normalizeType: preset.normalizeType };
@@ -57,9 +63,8 @@ function buildSimulatedHistory(
   securityId: number | null,
   prior: Tx[],
 ): Tx[] {
-  const dbHistory = securityId !== null && securityId > 0
-    ? loadTxHistory(db, accountId, securityId)
-    : [];
+  const dbHistory =
+    securityId !== null && securityId > 0 ? loadTxHistory(db, accountId, securityId) : [];
   const baseId = dbHistory.reduce((m, t) => Math.max(m, t.id), 0);
   const simulated = prior.map((t, i) => ({ ...t, id: baseId + i + 1 }));
   return [...dbHistory, ...simulated];
@@ -80,15 +85,23 @@ export function previewImport(db: Db, params: ImportParams): PreviewResult {
     const warnings: { message: string }[] = [];
     let isNewSecurity = false;
     let isDuplicate = false;
-    let resolvedSymbol: string | undefined;
-
-    const parsed = CreateTransactionSchema.safeParse(canonicalToCreateInput(row, params.accountId, normalizeType));
+    const parsed = CreateTransactionSchema.safeParse(
+      canonicalToCreateInput(row, params.accountId, normalizeType),
+    );
     if (!parsed.success) {
-      for (const issue of parsed.error.issues) errors.push({ message: `${issue.path.join('.')}: ${issue.message}` });
-      return { sourceIndex: row.sourceIndex, status: 'error', isNewSecurity, isDuplicate, errors, warnings };
+      for (const issue of parsed.error.issues)
+        errors.push({ message: `${issue.path.join('.')}: ${issue.message}` });
+      return {
+        sourceIndex: row.sourceIndex,
+        status: 'error',
+        isNewSecurity,
+        isDuplicate,
+        errors,
+        warnings,
+      };
     }
     const input = parsed.data;
-    resolvedSymbol = input.symbol;
+    const resolvedSymbol = input.symbol;
 
     let securityId: number | null = null;
     if (isSecurityBearing(input.transaction_type)) {
@@ -97,13 +110,15 @@ export function previewImport(db: Db, params: ImportParams): PreviewResult {
       isNewSecurity = !existing;
     }
 
-    if (findDuplicates(db, {
-      transaction_date: input.transaction_date,
-      security_id: securityId === -1 ? null : securityId,
-      quantity: input.quantity,
-      price_cents: input.price_cents ?? null,
-      account_id: input.account_id,
-    }).length > 0) {
+    if (
+      findDuplicates(db, {
+        transaction_date: input.transaction_date,
+        security_id: securityId === -1 ? null : securityId,
+        quantity: input.quantity,
+        price_cents: input.price_cents ?? null,
+        account_id: input.account_id,
+      }).length > 0
+    ) {
       isDuplicate = true;
       warnings.push({ message: 'matches an existing transaction' });
     }
@@ -127,15 +142,29 @@ export function previewImport(db: Db, params: ImportParams): PreviewResult {
       } catch (e) {
         if (e instanceof FinancialError && e.code === 'domain.sell_exceeds_holdings') {
           errors.push({ message: 'sell exceeds holdings' });
-        } else { throw e; }
+        } else {
+          throw e;
+        }
       }
       // Only add successful lot-affecting rows to the simulated stream so a
       // later error row can't hide an earlier real over-sell.
       if (errors.length === 0) simulated.push(candidate);
     }
 
-    const status: PreviewRowResult['status'] = errors.length ? 'error' : warnings.length ? 'warn' : 'ok';
-    return { sourceIndex: row.sourceIndex, status, resolvedSymbol, isNewSecurity, isDuplicate, errors, warnings };
+    const status: PreviewRowResult['status'] = errors.length
+      ? 'error'
+      : warnings.length
+        ? 'warn'
+        : 'ok';
+    return {
+      sourceIndex: row.sourceIndex,
+      status,
+      resolvedSymbol,
+      isNewSecurity,
+      isDuplicate,
+      errors,
+      warnings,
+    };
   });
 
   const summary = {
@@ -147,13 +176,20 @@ export function previewImport(db: Db, params: ImportParams): PreviewResult {
   return { rows: results, summary, mapping };
 }
 
-export function commitImport(db: Db, params: ImportParams & { acceptedIndexes: number[] }): CommitResult {
+export function commitImport(
+  db: Db,
+  params: ImportParams & { acceptedIndexes: number[] },
+): CommitResult {
   const preview = previewImport(db, params);
   const accepted = new Set(params.acceptedIndexes);
   const acceptedRows = preview.rows.filter((r) => accepted.has(r.sourceIndex));
   const errored = acceptedRows.filter((r) => r.status === 'error');
   if (errored.length > 0) {
-    throw ingestionError('ingestion.commit_has_errors', `${errored.length} accepted row(s) have errors`, { indexes: errored.map((r) => r.sourceIndex) });
+    throw ingestionError(
+      'ingestion.commit_has_errors',
+      `${errored.length} accepted row(s) have errors`,
+      { indexes: errored.map((r) => r.sourceIndex) },
+    );
   }
 
   const { mapping, normalizeType } = resolveMapping(params);
@@ -167,12 +203,19 @@ export function commitImport(db: Db, params: ImportParams & { acceptedIndexes: n
   db.$client.transaction(() => {
     for (const row of canonical) {
       if (!accepted.has(row.sourceIndex)) continue;
-      const input = CreateTransactionSchema.parse(canonicalToCreateInput(row, params.accountId, normalizeType));
-      const willCreate = isSecurityBearing(input.transaction_type) && !findSecurityBySymbol(db, input.symbol!);
-      const { warnings: rowWarnings } = createTransaction(db, canonicalToCreateInput(row, params.accountId, normalizeType));
+      const input = CreateTransactionSchema.parse(
+        canonicalToCreateInput(row, params.accountId, normalizeType),
+      );
+      const willCreate =
+        isSecurityBearing(input.transaction_type) && !findSecurityBySymbol(db, input.symbol!);
+      const { warnings: rowWarnings } = createTransaction(
+        db,
+        canonicalToCreateInput(row, params.accountId, normalizeType),
+      );
       if (willCreate) createdSecurities += 1;
       inserted += 1;
-      for (const w of rowWarnings) warnings.push({ sourceIndex: row.sourceIndex, message: w.message });
+      for (const w of rowWarnings)
+        warnings.push({ sourceIndex: row.sourceIndex, message: w.message });
     }
   })();
 

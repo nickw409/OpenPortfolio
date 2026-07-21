@@ -11,5 +11,9 @@ export function listTags(db: Db): TagRow[] {
 
 export function createTag(db: Db, raw: unknown): TagRow {
   const input = CreateTagSchema.parse(raw);
-  return db.insert(tags).values({ name: input.name, color: input.color ?? null }).returning().get();
+  return db
+    .insert(tags)
+    .values({ name: input.name, color: input.color ?? null })
+    .returning()
+    .get();
 }

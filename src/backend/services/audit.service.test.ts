@@ -9,16 +9,25 @@ import { audit_log } from '@backend/db/schema';
 import { writeAudit } from './audit.service';
 
 describe('writeAudit', () => {
-  let dir: string; let db: Db;
+  let dir: string;
+  let db: Db;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'op-audit-'));
     db = createDb(join(dir, 't.sqlite'));
     runMigrations(db);
   });
-  afterEach(() => { closeDb(db); rmSync(dir, { recursive: true, force: true }); });
+  afterEach(() => {
+    closeDb(db);
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it('records an insert row with serialized after-state', () => {
-    writeAudit(db, { entity_type: 'transaction', entity_id: 7, action: 'insert', after: { id: 7, quantity: 3 } });
+    writeAudit(db, {
+      entity_type: 'transaction',
+      entity_id: 7,
+      action: 'insert',
+      after: { id: 7, quantity: 3 },
+    });
     const rows = db.select().from(audit_log).all();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.action).toBe('insert');

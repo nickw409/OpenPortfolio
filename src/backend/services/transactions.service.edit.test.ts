@@ -61,7 +61,13 @@ describe('editTransaction / softDeleteTransaction', () => {
     softDeleteTransaction(db, transaction.id);
     const row = db.select().from(transactions).all()[0]!;
     expect(row.deleted_at).not.toBeNull();
-    expect(db.select().from(audit_log).all().some((a) => a.action === 'delete')).toBe(true);
+    expect(
+      db
+        .select()
+        .from(audit_log)
+        .all()
+        .some((a) => a.action === 'delete'),
+    ).toBe(true);
   });
 
   it('rejects deleting a buy that strands a later sell', () => {

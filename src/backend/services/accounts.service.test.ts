@@ -26,13 +26,26 @@ describe('accounts.service', () => {
   it('creates an account with defaults and audits it', () => {
     const a = createAccount(db, { name: 'Brokerage', tax_treatment: 'taxable' });
     expect(a.cost_basis_method).toBe('fifo');
-    expect(db.select().from(audit_log).all().some((r) => r.action === 'insert')).toBe(true);
+    expect(
+      db
+        .select()
+        .from(audit_log)
+        .all()
+        .some((r) => r.action === 'insert'),
+    ).toBe(true);
   });
 
   it('renames and archives (soft-delete removes it from the active list)', () => {
     const a = createAccount(db, { name: 'Old', tax_treatment: 'taxable' });
     renameAccount(db, a.id, { name: 'New' });
-    expect(db.select().from(accounts).where(undefined as never).all().find((r: { id: number; name: string }) => r.id === a.id)?.name).toBe('New');
+    expect(
+      db
+        .select()
+        .from(accounts)
+        .where(undefined as never)
+        .all()
+        .find((r: { id: number; name: string }) => r.id === a.id)?.name,
+    ).toBe('New');
     archiveAccount(db, a.id);
     expect(listAccounts(db).find((r: { id: number }) => r.id === a.id)).toBeUndefined();
   });

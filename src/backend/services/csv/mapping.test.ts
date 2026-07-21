@@ -2,7 +2,14 @@ import { applyMapping, canonicalToCreateInput } from './mapping';
 import { BROKER_PRESETS, getPreset } from './presets';
 
 const rows = [{ D: '2020-01-02', T: 'buy', S: 'AAPL', Q: '10', P: '150.00', A: '1500.00' }];
-const mapping = { transaction_date: 'D', transaction_type: 'T', symbol: 'S', quantity: 'Q', price: 'P', amount: 'A' };
+const mapping = {
+  transaction_date: 'D',
+  transaction_type: 'T',
+  symbol: 'S',
+  quantity: 'Q',
+  price: 'P',
+  amount: 'A',
+};
 
 describe('applyMapping', () => {
   it('projects raw rows onto canonical fields', () => {
@@ -13,7 +20,9 @@ describe('applyMapping', () => {
   });
 
   it('throws when a required header is missing', () => {
-    expect(() => applyMapping(rows, { transaction_date: 'D', transaction_type: 'MISSING' })).toThrow(/mapping_incomplete|missing/i);
+    expect(() =>
+      applyMapping(rows, { transaction_date: 'D', transaction_type: 'MISSING' }),
+    ).toThrow(/mapping_incomplete|missing/i);
   });
 });
 
@@ -35,10 +44,16 @@ describe('broker presets', () => {
 
   it('fidelity preset maps a sample row and normalizes the type', () => {
     const preset = getPreset('fidelity');
-    const sampleRows = [{
-      'Run Date': '01/02/2020', 'Action': 'YOU BOUGHT', 'Symbol': 'AAPL',
-      'Quantity': '10', 'Price ($)': '150.00', 'Amount ($)': '-1500.00',
-    }];
+    const sampleRows = [
+      {
+        'Run Date': '01/02/2020',
+        Action: 'YOU BOUGHT',
+        Symbol: 'AAPL',
+        Quantity: '10',
+        'Price ($)': '150.00',
+        'Amount ($)': '-1500.00',
+      },
+    ];
     const [canonical] = applyMapping(sampleRows, preset.mapping);
     const input = canonicalToCreateInput(canonical!, 1, preset.normalizeType);
     expect(input.transaction_type).toBe('buy');

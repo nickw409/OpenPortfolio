@@ -12,12 +12,14 @@ export interface WriteAuditParams {
 }
 
 export function writeAudit(db: Db, p: WriteAuditParams): void {
-  db.insert(audit_log).values({
-    entity_type: p.entity_type,
-    entity_id: p.entity_id,
-    action: p.action,
-    before_json: p.before === undefined ? null : JSON.stringify(p.before),
-    after_json: p.after === undefined ? null : JSON.stringify(p.after),
-    actor: 'user',
-  }).run();
+  db.insert(audit_log)
+    .values({
+      entity_type: p.entity_type,
+      entity_id: p.entity_id,
+      action: p.action,
+      before_json: p.before === undefined ? null : JSON.stringify(p.before),
+      after_json: p.after === undefined ? null : JSON.stringify(p.after),
+      actor: 'user',
+    })
+    .run();
 }

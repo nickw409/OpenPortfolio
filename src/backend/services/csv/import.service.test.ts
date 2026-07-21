@@ -8,7 +8,14 @@ import { accounts, transactions } from '@backend/db/schema';
 
 import { commitImport, previewImport } from './import.service';
 
-const mapping = { transaction_date: 'D', transaction_type: 'T', symbol: 'S', quantity: 'Q', price: 'P', amount: 'A' };
+const mapping = {
+  transaction_date: 'D',
+  transaction_type: 'T',
+  symbol: 'S',
+  quantity: 'Q',
+  price: 'P',
+  amount: 'A',
+};
 const csv = [
   'D,T,S,Q,P,A',
   '2020-01-02,buy,AAPL,10,150.00,1500.00',
@@ -55,7 +62,9 @@ describe('CSV import', () => {
 
   it('commit rejects the whole batch if an accepted row errors', () => {
     const bad = ['D,T,S,Q,P,A', '2020-01-02,sell,AAPL,5,150.00,750.00'].join('\n');
-    expect(() => commitImport(db, { text: bad, accountId: 1, mapping, acceptedIndexes: [0] })).toThrow(/commit_has_errors|error/i);
+    expect(() =>
+      commitImport(db, { text: bad, accountId: 1, mapping, acceptedIndexes: [0] }),
+    ).toThrow(/commit_has_errors|error/i);
     expect(db.select().from(transactions).all()).toHaveLength(0);
   });
 });

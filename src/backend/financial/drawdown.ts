@@ -4,12 +4,7 @@
 
 import { cpiAt } from './cpi';
 import { FinancialError } from './errors';
-import type {
-  CpiSeries,
-  DrawdownResult,
-  DrawdownStats,
-  ValuationSeries,
-} from './types';
+import type { CpiSeries, DrawdownResult, DrawdownStats, ValuationSeries } from './types';
 
 interface IndexPoint {
   date: Date;
@@ -65,10 +60,7 @@ function statsFromSeries(idx: ReadonlyArray<IndexPoint>): DrawdownStats {
   };
 }
 
-export function computeDrawdown(
-  series: ValuationSeries,
-  cpi?: CpiSeries,
-): DrawdownResult {
+export function computeDrawdown(series: ValuationSeries, cpi?: CpiSeries): DrawdownResult {
   const nominalIdx = series.points.map((p) => ({ date: p.date, value: p.tr_index }));
   const result: DrawdownResult = {
     nominal: statsFromSeries(nominalIdx),

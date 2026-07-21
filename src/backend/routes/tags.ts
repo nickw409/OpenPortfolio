@@ -3,7 +3,9 @@ import { Hono } from 'hono';
 import type { Db } from '@backend/db/client';
 import { createTag, listTags } from '@backend/services/tags.service';
 
-export interface TagsDeps { db: Db; }
+export interface TagsDeps {
+  db: Db;
+}
 
 export function createTagsRoute(deps: TagsDeps): Hono {
   return new Hono()

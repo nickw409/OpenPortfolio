@@ -3,7 +3,11 @@ import { Hono } from 'hono';
 import type { Db } from '@backend/db/client';
 import { accounts } from '@backend/db/schema';
 import { activeFilter } from '@backend/db/soft-delete';
-import { archiveAccount, createAccount, renameAccount } from '@backend/services/accounts.service';
+import {
+  archiveAccount,
+  createAccount,
+  renameAccount,
+} from '@backend/services/accounts.service';
 import { AccountsResponseSchema, type AccountsResponse } from '@shared/schemas/account';
 
 export interface AccountsDeps {
@@ -38,6 +42,11 @@ export function createAccountsRoute(deps: AccountsDeps): Hono {
       return c.json(parsed.data);
     })
     .post('/', async (c) => c.json({ account: createAccount(deps.db, await c.req.json()) }, 201))
-    .patch('/:id', async (c) => c.json({ account: renameAccount(deps.db, Number(c.req.param('id')), await c.req.json()) }))
-    .delete('/:id', (c) => { archiveAccount(deps.db, Number(c.req.param('id'))); return c.body(null, 204); });
+    .patch('/:id', async (c) =>
+      c.json({ account: renameAccount(deps.db, Number(c.req.param('id')), await c.req.json()) }),
+    )
+    .delete('/:id', (c) => {
+      archiveAccount(deps.db, Number(c.req.param('id')));
+      return c.body(null, 204);
+    });
 }
