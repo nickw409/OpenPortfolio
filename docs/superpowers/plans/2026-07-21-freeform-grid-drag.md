@@ -4,7 +4,7 @@
 
 **Goal:** Replace the sortable swap interaction on the dashboard grid with free-form x/y coordinate positioning that snaps to the 12-column grid and reflows displaced tiles directionally.
 
-**Architecture:** All snapping and reflow logic lives in a pure, React-free module `dashboard/grid-snap.ts` (fully unit- and property-tested). `dashboard/grid.tsx` becomes thin dnd-kit wiring: `useDraggable` per tile, pointer + keyboard sensors, measure the container, and on drop call `grid-snap.ts` then dispatch the resulting multi-tile move to the existing `useLayout.reorder` (which hits the atomic reorder endpoint from ADR-0003). No backend change.
+**Architecture:** All snapping and reflow logic lives in a pure, React-free module `dashboard/grid-snap.ts` (fully unit- and property-tested). `dashboard/grid.tsx` becomes thin dnd-kit wiring: `useDraggable` per tile, pointer + keyboard sensors, measure the container, and on drop call `grid-snap.ts` then dispatch the resulting multi-tile move to the existing `useLayout.reorder` (which hits the atomic reorder endpoint from ADR-0004). No backend change.
 
 **Tech Stack:** React 18, TypeScript, @dnd-kit/core, @tanstack/react-query, vitest + @testing-library/react + fast-check.
 

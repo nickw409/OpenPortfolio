@@ -1,4 +1,4 @@
-# ADR-0003: Default-layout fetch and atomic tile reorder
+# ADR-0004: Default-layout fetch and atomic tile reorder
 
 - **Status:** Accepted
 - **Date:** 2026-07-21

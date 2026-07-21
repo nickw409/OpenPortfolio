@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-21
 **Workstream:** WS7 Tile-based dashboard — implements [tile-dashboard spec §T3](2026-07-21-tile-dashboard.md) ("dnd-kit with a small custom grid-snapper").
-**Depends on:** existing atomic reorder endpoint (`POST /api/v1/dashboard/layouts/:id/tiles/reorder`, [ADR-0003](../adr/0003-default-layout-and-atomic-tile-reorder.md)) and `useLayout` TanStack Query hook.
+**Depends on:** existing atomic reorder endpoint (`POST /api/v1/dashboard/layouts/:id/tiles/reorder`, [ADR-0004](../adr/0004-default-layout-and-atomic-tile-reorder.md)) and `useLayout` TanStack Query hook.
 
 ## Context
 
@@ -155,7 +155,7 @@ defensive rollback, not an expected flow.
   decided.
 - **Pure `resolveDrop` returning moves, fed to the atomic reorder endpoint** —
   a reflow is inherently a multi-tile change; the existing whole-arrangement
-  validator (ADR-0003) is the right sink, so no backend work and the frontend
+  validator (ADR-0004) is the right sink, so no backend work and the frontend
   logic stays a testable pure function.
 - **Directional push with downward-safe fallback** — chosen over snap-back
   (less magnetic) and over uniform push-down (ignores where the user aimed).
