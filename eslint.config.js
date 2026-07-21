@@ -51,6 +51,7 @@ export default [
       'coverage/',
       'migrations/',
       'eslint-rules/',
+      'worktrees/',
     ],
   },
 ];
