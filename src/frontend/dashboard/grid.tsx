@@ -1,37 +1,57 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   DndContext,
   type DragEndEvent,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
+  useDraggable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@frontend/components/ui/card';
 import { getTileDefinition } from '@frontend/tiles/registry';
 
-import { useLayout, type TileMove } from './use-layout';
+import { computeDropMoves } from './grid-snap';
+import { useLayout } from './use-layout';
 import type { TileItem } from './types';
-import { GRID_COLUMNS, gridStyle, tileStyle } from './types';
+import { GRID_COLUMNS, GAP_PX, ROW_HEIGHT_PX, gridStyle, tileStyle } from './types';
 
 export function DashboardGrid(): JSX.Element | null {
   const { layout, loading, error, reorder } = useLayout();
   const [activeId, setActiveId] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Keyboard drag advances one grid cell per arrow press. dnd-kit accumulates
+  // these into `event.delta`, which the drop handler snaps back to whole cells.
+  const keyboardCoordinateGetter = useCallback<KeyboardCoordinateGetter>(
+    (event, { currentCoordinates }) => {
+      const width = containerRef.current?.getBoundingClientRect().width ?? 0;
+      const usable = width - 2 * GAP_PX - (GRID_COLUMNS - 1) * GAP_PX;
+      const colStride = usable / GRID_COLUMNS + GAP_PX;
+      const rowStride = ROW_HEIGHT_PX + GAP_PX;
+      switch (event.code) {
+        case 'ArrowRight':
+          return { ...currentCoordinates, x: currentCoordinates.x + colStride };
+        case 'ArrowLeft':
+          return { ...currentCoordinates, x: currentCoordinates.x - colStride };
+        case 'ArrowDown':
+          return { ...currentCoordinates, y: currentCoordinates.y + rowStride };
+        case 'ArrowUp':
+          return { ...currentCoordinates, y: currentCoordinates.y - rowStride };
+        default:
+          return undefined;
+      }
+    },
+    [],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinateGetter }),
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -42,13 +62,9 @@ export function DashboardGrid(): JSX.Element | null {
     (event: DragEndEvent) => {
       setActiveId(null);
       if (!layout) return;
-      const { active, over } = event;
-      if (!over) return;
-      // Dragging a tile onto another swaps their grid positions. The two moves
-      // are sent as one atomic reorder so the backend validates the resulting
-      // arrangement as a whole rather than rejecting the transient overlap.
-      const moves = computeSwap(layout.tiles, Number(active.id), Number(over.id));
-      if (moves) reorder(moves);
+      const width = containerRef.current?.getBoundingClientRect().width ?? 0;
+      const moves = computeDropMoves(layout.tiles, Number(event.active.id), event.delta, width);
+      if (moves.length) reorder(moves);
     },
     [layout, reorder],
   );
@@ -60,47 +76,26 @@ export function DashboardGrid(): JSX.Element | null {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <SortableContext items={layout.tiles.map((t) => String(t.id))} strategy={rectSortingStrategy}>
-        <div style={gridStyle()}>
-          {layout.tiles.map((tile) => (
-            <SortableTile key={tile.id} tile={tile} activeId={activeId} />
-          ))}
-        </div>
-      </SortableContext>
+      <div ref={containerRef} style={gridStyle()}>
+        {layout.tiles.map((tile) => (
+          <DraggableTile key={tile.id} tile={tile} activeId={activeId} />
+        ))}
+      </div>
     </DndContext>
   );
 }
 
-// Compute the position swap for dragging `activeId` onto `overId`. Returns the
-// two moves, or null when the drag is a no-op or references a missing tile.
-// Exported so the swap logic can be unit-tested without simulating pointer input.
-export function computeSwap(
-  tiles: TileItem[],
-  activeId: number,
-  overId: number,
-): TileMove[] | null {
-  if (activeId === overId) return null;
-  const source = tiles.find((t) => t.id === activeId);
-  const target = tiles.find((t) => t.id === overId);
-  if (!source || !target) return null;
-  return [
-    { tileId: source.id, position: target.position },
-    { tileId: target.id, position: source.position },
-  ];
-}
-
-interface SortableTileProps {
+interface DraggableTileProps {
   tile: TileItem;
   activeId: number | null;
 }
 
-function SortableTile({ tile, activeId }: SortableTileProps): JSX.Element {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+function DraggableTile({ tile, activeId }: DraggableTileProps): JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: String(tile.id),
   });
 
@@ -110,8 +105,7 @@ function SortableTile({ tile, activeId }: SortableTileProps): JSX.Element {
 
   const style: React.CSSProperties = {
     ...tileStyle(tile.position),
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
     opacity: isDragging || activeId === tile.id ? 0.5 : 1,
     zIndex: isDragging ? 10 : 1,
   };
