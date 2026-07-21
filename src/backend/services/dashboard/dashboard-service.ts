@@ -46,7 +46,11 @@ const MIN_SIZE = 2;
 const MAX_SIZE = 12;
 
 const PositionSchema = z.object({
-  x: z.number().int().min(0).max(MAX_COLUMNS - MIN_SIZE),
+  x: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_COLUMNS - MIN_SIZE),
   y: z.number().int().min(0),
   w: z.number().int().min(MIN_SIZE).max(MAX_SIZE),
   h: z.number().int().min(MIN_SIZE).max(MAX_SIZE),
@@ -219,6 +223,27 @@ export class DashboardService {
     };
   }
 
+  getDefaultLayout(): LayoutItem {
+    const existing = this.deps.db
+      .select({ id: dashboard_layouts.id })
+      .from(dashboard_layouts)
+      .where(and(eq(dashboard_layouts.is_default, true), activeFilter(dashboard_layouts)))
+      .orderBy(dashboard_layouts.id)
+      .get();
+    if (existing) return this.getLayout(existing.id);
+    return this.seedDefaultLayout();
+  }
+
+  // Lazily create an Overview default the first time the dashboard is opened on
+  // a fresh database, so the frontend always has a layout to render. Wrapped in
+  // a transaction so a partial seed (layout row without its tiles) can't persist.
+  private seedDefaultLayout(): LayoutItem {
+    return this.deps.db.transaction(() => {
+      const created = this.createLayout(defaultLayoutName(), true);
+      return this.resetLayout(created.id);
+    });
+  }
+
   createLayout(name: string, isDefault: boolean): LayoutItem {
     const now = new Date();
     const values: typeof dashboard_layouts.$inferInsert = {
@@ -227,7 +252,11 @@ export class DashboardService {
       created_at: now,
       updated_at: now,
     };
-    const id = this.deps.db.insert(dashboard_layouts).values(values).returning({ id: dashboard_layouts.id }).get().id;
+    const id = this.deps.db
+      .insert(dashboard_layouts)
+      .values(values)
+      .returning({ id: dashboard_layouts.id })
+      .get().id;
     if (isDefault) {
       this.clearOtherDefaults(id);
     }
@@ -264,18 +293,10 @@ export class DashboardService {
     }
   }
 
-  addTile(
-    layoutId: number,
-    tileType: string,
-    position: TilePosition,
-    config: unknown,
-  ): TileItem {
+  addTile(layoutId: number, tileType: string, position: TilePosition, config: unknown): TileItem {
     this.getLayout(layoutId); // validates layout exists and current tiles don't overlap
     const now = new Date();
-    validateNoOverlap([
-      { id: -1, position },
-      ...this.getTilePositions(layoutId),
-    ]);
+    validateNoOverlap([{ id: -1, position }, ...this.getTilePositions(layoutId)]);
     const inserted = this.deps.db
       .insert(tile_configs)
       .values({
@@ -328,6 +349,45 @@ export class DashboardService {
       throw new DashboardError('not_found.resource', `Tile ${tileId} not found after update`, 404);
     }
     return toTileItem(updated);
+  }
+
+  // Apply several tile moves atomically. Unlike updateTile (one tile at a
+  // time), the caller can pass an arrangement that is only valid as a whole —
+  // e.g. swapping two tiles, where each intermediate single move would overlap
+  // the tile it is swapping with. Overlap is validated against the FINAL
+  // arrangement, then all moves commit in one transaction.
+  reorderTiles(layoutId: number, moves: { tileId: number; position: TilePosition }[]): LayoutItem {
+    this.getLayout(layoutId); // validates layout exists and current tiles are consistent
+    const current = this.getTilePositions(layoutId);
+    const currentIds = new Set(current.map((t) => t.id));
+    for (const move of moves) {
+      if (!currentIds.has(move.tileId)) {
+        throw new DashboardError(
+          'not_found.resource',
+          `Tile ${move.tileId} not found in layout ${layoutId}`,
+          404,
+        );
+      }
+    }
+
+    const moveMap = new Map(moves.map((m) => [m.tileId, m.position]));
+    const finalArrangement = current.map((t) => ({
+      id: t.id,
+      position: moveMap.get(t.id) ?? t.position,
+    }));
+    validateNoOverlap(finalArrangement);
+
+    const now = new Date();
+    this.deps.db.transaction(() => {
+      for (const move of moves) {
+        this.deps.db
+          .update(tile_configs)
+          .set({ position_json: JSON.stringify(move.position), updated_at: now })
+          .where(and(eq(tile_configs.id, move.tileId), eq(tile_configs.layout_id, layoutId)))
+          .run();
+      }
+    });
+    return this.getLayout(layoutId);
   }
 
   deleteTile(layoutId: number, tileId: number): void {
@@ -404,7 +464,11 @@ export class DashboardService {
   }
 }
 
-export function defaultLayoutTiles(): { tile_type: string; position: TilePosition; config: unknown }[] {
+export function defaultLayoutTiles(): {
+  tile_type: string;
+  position: TilePosition;
+  config: unknown;
+}[] {
   return [
     {
       tile_type: 'positions_table',

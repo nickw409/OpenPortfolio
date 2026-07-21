@@ -38,6 +38,17 @@ const UpdateTileSchema = z.object({
   config_json: z.string().optional(),
 });
 
+const ReorderTilesSchema = z.object({
+  moves: z
+    .array(
+      z.object({
+        tile_id: z.number().int().positive(),
+        position_json: z.string(),
+      }),
+    )
+    .min(1),
+});
+
 function numericParam(param: string | undefined): number {
   const value = Number(param);
   if (!Number.isFinite(value) || value <= 0) {
@@ -53,6 +64,13 @@ export function createDashboardRoute(deps: DashboardRouteDeps): Hono {
   app.get('/layouts', async (c) => {
     const layouts = service.listLayouts();
     return c.json({ layouts });
+  });
+
+  // Registered before /layouts/:id so the literal "default" segment is not
+  // captured as an :id (which would fail numeric parsing).
+  app.get('/layouts/default', async (c) => {
+    const layout = service.getDefaultLayout();
+    return c.json({ layout });
   });
 
   app.get('/layouts/:id', async (c) => {
@@ -90,6 +108,16 @@ export function createDashboardRoute(deps: DashboardRouteDeps): Hono {
       parseConfig(body.config_json),
     );
     return c.json({ tile }, 201);
+  });
+
+  app.post('/layouts/:id/tiles/reorder', async (c) => {
+    const layoutId = numericParam(c.req.param('id'));
+    const body = ReorderTilesSchema.parse(await c.req.json());
+    const layout = service.reorderTiles(
+      layoutId,
+      body.moves.map((m) => ({ tileId: m.tile_id, position: parsePosition(m.position_json) })),
+    );
+    return c.json({ layout });
   });
 
   app.patch('/layouts/:id/tiles/:tile_id', async (c) => {

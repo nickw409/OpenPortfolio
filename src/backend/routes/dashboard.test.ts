@@ -43,6 +43,25 @@ describe('Dashboard route', () => {
     return body.layout.id;
   }
 
+  async function addTile(
+    layoutId: number,
+    tileType: string,
+    position: { x: number; y: number; w: number; h: number },
+  ): Promise<number> {
+    const res = await app().request(`/layouts/${layoutId}/tiles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tile_type: tileType,
+        position_json: JSON.stringify(position),
+        config_json: '{}',
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { tile: { id: number } };
+    return body.tile.id;
+  }
+
   it('POST /layouts creates a layout', async () => {
     const res = await app().request('/layouts', {
       method: 'POST',
@@ -62,6 +81,83 @@ describe('Dashboard route', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { layouts: unknown[] };
     expect(body.layouts).toHaveLength(2);
+  });
+
+  it('GET /layouts/default auto-seeds an Overview default on a fresh database', async () => {
+    const res = await app().request('/layouts/default');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      layout: { name: string; is_default: boolean; tiles: { tile_type: string }[] };
+    };
+    expect(body.layout.name).toBe('Overview');
+    expect(body.layout.is_default).toBe(true);
+    expect(body.layout.tiles.map((t) => t.tile_type)).toEqual([
+      'positions_table',
+      'allocation_chart',
+    ]);
+
+    // Idempotent: a second request must not create a second default layout.
+    await app().request('/layouts/default');
+    const list = (await (await app().request('/layouts')).json()) as { layouts: unknown[] };
+    expect(list.layouts).toHaveLength(1);
+  });
+
+  it('GET /layouts/default returns the flagged default when one already exists', async () => {
+    await createLayout('Scratch');
+    const defaultId = await createLayout('Primary', true);
+    const res = await app().request('/layouts/default');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { layout: { id: number; name: string } };
+    expect(body.layout.id).toBe(defaultId);
+    expect(body.layout.name).toBe('Primary');
+  });
+
+  it('POST /layouts/:id/tiles/reorder swaps two tiles atomically', async () => {
+    const layoutId = await createLayout('Overview');
+    const a = await addTile(layoutId, 'positions_table', { x: 0, y: 0, w: 6, h: 4 });
+    const b = await addTile(layoutId, 'allocation_chart', { x: 6, y: 0, w: 6, h: 4 });
+
+    const res = await app().request(`/layouts/${layoutId}/tiles/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        moves: [
+          { tile_id: a, position_json: JSON.stringify({ x: 6, y: 0, w: 6, h: 4 }) },
+          { tile_id: b, position_json: JSON.stringify({ x: 0, y: 0, w: 6, h: 4 }) },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      layout: { tiles: { id: number; position: { x: number } }[] };
+    };
+    const byId = new Map(body.layout.tiles.map((t) => [t.id, t.position.x]));
+    expect(byId.get(a)).toBe(6);
+    expect(byId.get(b)).toBe(0);
+  });
+
+  it('POST /layouts/:id/tiles/reorder rejects an arrangement that overlaps', async () => {
+    const layoutId = await createLayout('Overview');
+    const a = await addTile(layoutId, 'positions_table', { x: 0, y: 0, w: 6, h: 4 });
+    const b = await addTile(layoutId, 'allocation_chart', { x: 6, y: 0, w: 6, h: 4 });
+
+    // Move a onto b's cell without moving b -> final arrangement overlaps.
+    const res = await app().request(`/layouts/${layoutId}/tiles/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        moves: [{ tile_id: a, position_json: JSON.stringify({ x: 6, y: 0, w: 6, h: 4 }) }],
+      }),
+    });
+    expect(res.status).toBe(400);
+
+    // Original positions are unchanged after a rejected reorder.
+    const layout = (await (await app().request(`/layouts/${layoutId}`)).json()) as {
+      layout: { tiles: { id: number; position: { x: number } }[] };
+    };
+    const positions = new Map(layout.layout.tiles.map((t) => [t.id, t.position.x]));
+    expect(positions.get(a)).toBe(0);
+    expect(positions.get(b)).toBe(6);
   });
 
   it('POST /layouts/:id/tiles creates a tile', async () => {
