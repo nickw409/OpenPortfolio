@@ -3,16 +3,23 @@
 /*
  * Dual tokens, unified signal.
  *
- * OpenPortfolio owns the `--color-bg/fg/muted/accent/loss/gain/border` set
- * below (Task 4). shadcn/ui primitives (Task 10) reference a second, standard
- * token set (`--background`, `--muted-foreground`, `--ring`, ...). Both must go
- * dark on the SAME signal: the `data-theme` attribute our ThemeProvider (Task 7)
- * sets on <html>, falling back to the OS preference for "system" mode.
+ * OpenPortfolio's semantic tokens live in the `--op-*` namespace as plain
+ * :root custom properties — consumed via inline `style={{ ... }}` (e.g.
+ * `var(--op-border)`), never as Tailwind utilities. shadcn/ui primitives use
+ * the standard `--background`/`--muted`/`--ring`/... set, exposed to Tailwind
+ * via `@theme inline` so `bg-background`, `text-muted-foreground`,
+ * `border-border`, etc. are generated.
  *
- * `@custom-variant dark` below rewires shadcn's `dark:` utilities onto that
- * exact signal, and every shadcn token is redefined under the same two
- * selectors our `--color-*` tokens already use, so the two systems always flip
- * together.
+ * Both systems go dark on the SAME signal: the `data-theme` attribute
+ * ThemeProvider (Task 7) sets on <html>, falling back to the OS preference for
+ * "system" mode. `@custom-variant dark` and every token block below use the
+ * same two selectors, so the two systems always flip together.
+ *
+ * `--op-*` are deliberately plain `:root` vars, NOT `@theme` entries: Tailwind
+ * v4 tree-shakes unreferenced `@theme` variables out of `:root`, which would
+ * leave `var(--op-*)` undefined in light mode. Plain custom properties always
+ * emit. Keeping them out of the `--color-*` namespace also avoids colliding
+ * with shadcn's `@theme inline` tokens.
  */
 @custom-variant dark {
   &:where([data-theme='dark'], [data-theme='dark'] *) {
@@ -25,30 +32,31 @@
   }
 }
 
-@theme {
-  --color-bg: oklch(98% 0.005 250);
-  --color-fg: oklch(20% 0.01 250);
-  --color-muted: oklch(60% 0.02 250);
-  --color-accent: oklch(55% 0.18 250);
-  --color-loss: oklch(58% 0.2 25);
-  --color-gain: oklch(55% 0.16 145);
-  --color-border: oklch(90% 0.01 250);
+/* OpenPortfolio semantic tokens (light). */
+:root {
+  --op-bg: oklch(98% 0.005 250);
+  --op-fg: oklch(20% 0.01 250);
+  --op-muted: oklch(60% 0.02 250);
+  --op-accent: oklch(55% 0.18 250);
+  --op-loss: oklch(58% 0.2 25);
+  --op-gain: oklch(55% 0.16 145);
+  --op-border: oklch(90% 0.01 250);
   --radius: 6px;
 }
 
 [data-theme='dark'] {
-  --color-bg: oklch(18% 0.01 250);
-  --color-fg: oklch(95% 0.005 250);
-  --color-muted: oklch(60% 0.015 250);
-  --color-border: oklch(30% 0.01 250);
+  --op-bg: oklch(18% 0.01 250);
+  --op-fg: oklch(95% 0.005 250);
+  --op-muted: oklch(60% 0.015 250);
+  --op-border: oklch(30% 0.01 250);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: oklch(18% 0.01 250);
-    --color-fg: oklch(95% 0.005 250);
-    --color-muted: oklch(60% 0.015 250);
-    --color-border: oklch(30% 0.01 250);
+    --op-bg: oklch(18% 0.01 250);
+    --op-fg: oklch(95% 0.005 250);
+    --op-muted: oklch(60% 0.015 250);
+    --op-border: oklch(30% 0.01 250);
   }
 }
 
@@ -75,7 +83,7 @@
   --ring: oklch(0.704 0.04 256.788);
 }
 
-/* shadcn dark values — mirror the two selectors our --color-* tokens use. */
+/* shadcn dark values — mirror the two selectors our --op-* tokens use. */
 [data-theme='dark'] {
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
@@ -127,12 +135,6 @@
  * `bg-background`, `text-muted-foreground`, `border-border`, `ring-ring` are
  * generated. `inline` keeps the `var()` reference (not the resolved value), so
  * the utilities re-read whichever selector is active and flip with the theme.
- *
- * NOTE: `--color-muted`, `--color-accent`, and `--color-border` are also
- * declared in the `@theme` block above with OpenPortfolio's own semantics.
- * This later block wins, so those three names now resolve to the shadcn tokens.
- * No app code consumes those classes yet; revisit if the app needs its own
- * distinct muted/accent/border utilities alongside shadcn's.
  */
 @theme inline {
   --color-background: var(--background);
@@ -158,8 +160,8 @@
 
 html,
 body {
-  background: var(--color-bg);
-  color: var(--color-fg);
+  background: var(--op-bg);
+  color: var(--op-fg);
 }
 
 body {
