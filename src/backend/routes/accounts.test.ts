@@ -1,12 +1,19 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { Hono } from 'hono';
 import { resolve } from 'node:path';
+import pino, { type Logger } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { Db } from '@backend/db/client';
 import * as schema from '@backend/db/schema';
+import { createErrorHandler } from '@backend/lib/error-handler';
 import { createAccountsRoute } from './accounts';
+
+function silentLogger(): Logger {
+  return pino({ level: 'silent' });
+}
 
 describe('GET /api/v1/accounts', () => {
   let db: Db;
@@ -108,5 +115,33 @@ describe('GET /api/v1/accounts', () => {
     expect(a).not.toHaveProperty('tax_treatment');
     expect(a).not.toHaveProperty('cost_basis_method');
     expect(a).not.toHaveProperty('currency_code');
+  });
+
+  it('surfaces response-schema drift as a 500 internal error, not a 400', async () => {
+    const now = new Date();
+    db.insert(schema.accounts)
+      .values({
+        name: 'Drifted',
+        broker: null,
+        tax_treatment: 'not_a_real_enum_value',
+        cost_basis_method: 'fifo',
+        currency_code: 'USD',
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+      })
+      .run();
+
+    // The route itself has no onError handler (that's wired at the top-level
+    // app in index.ts) — mount it under a parent app with the real error
+    // handler so the response envelope matches production.
+    const app = new Hono();
+    app.onError(createErrorHandler(silentLogger()));
+    app.route('/', createAccountsRoute({ db }));
+
+    const res = await app.request('/');
+    const body = (await res.json()) as { code: string };
+    expect(res.status).toBe(500);
+    expect(body.code).toBe('internal.unknown');
   });
 });

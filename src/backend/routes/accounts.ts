@@ -25,9 +25,15 @@ export function createAccountsRoute(deps: AccountsDeps): Hono {
         createdAt: r.created_at.toISOString(),
       })),
     };
-    // Throws on drift — exposes the bug in tests; in prod the error handler
-    // converts the throw to a 500 envelope.
-    AccountsResponseSchema.parse(body);
-    return c.json(body);
+    // Validated against our own wire schema: a failure here means server-side
+    // data drift (e.g. a stored tax_treatment/cost_basis_method outside the
+    // enum), not a bad client request. Throw a plain Error (not a ZodError)
+    // so the error handler's generic branch surfaces it as a 500
+    // internal.unknown at error level, never as a client-facing 400.
+    const parsed = AccountsResponseSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new Error(`accounts response failed schema validation: ${parsed.error.message}`);
+    }
+    return c.json(parsed.data);
   });
 }
