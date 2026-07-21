@@ -1,4 +1,4 @@
-import type { LayoutItem } from './types';
+import type { LayoutItem, TilePosition } from './types';
 
 const API_PREFIX = '/api/v1/dashboard';
 
@@ -23,7 +23,10 @@ export class ApiError extends Error {
 }
 
 async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${API_PREFIX}${path}`, { signal, headers: { accept: 'application/json' } });
+  const res = await fetch(`${API_PREFIX}${path}`, {
+    signal,
+    headers: { accept: 'application/json' },
+  });
   if (!res.ok) throw await extractError(res);
   return (await res.json()) as T;
 }
@@ -72,7 +75,7 @@ async function extractError(res: Response): Promise<ApiError> {
 }
 
 export function fetchDefaultLayout(signal?: AbortSignal): Promise<{ layout: LayoutItem }> {
-  return apiGet('/layouts', signal);
+  return apiGet('/layouts/default', signal);
 }
 
 export function createLayout(name: string, isDefault = false): Promise<{ layout: LayoutItem }> {
@@ -106,4 +109,16 @@ export function updateTile(
 
 export function deleteTile(layoutId: number, tileId: number): Promise<void> {
   return apiDelete(`/layouts/${layoutId}/tiles/${tileId}`);
+}
+
+// Apply several tile moves in a single request. The backend validates the
+// resulting arrangement as a whole, so swaps (which momentarily overlap when
+// applied one tile at a time) are accepted.
+export function reorderTiles(
+  layoutId: number,
+  moves: { tileId: number; position: TilePosition }[],
+): Promise<{ layout: LayoutItem }> {
+  return apiPost(`/layouts/${layoutId}/tiles/reorder`, {
+    moves: moves.map((m) => ({ tile_id: m.tileId, position_json: JSON.stringify(m.position) })),
+  });
 }
