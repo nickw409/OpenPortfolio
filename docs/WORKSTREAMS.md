@@ -90,21 +90,27 @@ Deferred (not engine work):
 
 ## 4. Frontend foundation (React)
 
-**Status: Not started.**
+**Status: Complete.** React 18 + TypeScript strict + Vite, wired end-to-end and proven with one vertical slice: a read-only Accounts list that fetches real DB rows through a new `GET /api/v1/accounts` route. Spec [specs/2026-05-19-frontend-foundation-design.md](specs/2026-05-19-frontend-foundation-design.md); the shadcn/theme reconciliation is [adr/0002-dual-token-theming-shadcn-and-data-theme.md](adr/0002-dual-token-theming-shadcn-and-data-theme.md).
 
-React 18 + TypeScript + Vite. Renders inside Electron in production, runs against the dev backend in development.
+Landed:
+- [x] Vite config with absolute-path imports — `@frontend/*` / `@shared/*` (repo convention; the spec's illustrative `@/components/...` maps to `@frontend/components/...`)
+- [x] TypeScript strict mode; no unjustified `any` (only the generated, gitignored `routeTree.gen.ts` contains `as any`)
+- [x] State management: TanStack Query for server state (`use`-hooks over `apiGet` + `ApiError` envelope parsing), Zustand (single `ui-store`, `persist` + `partialize`) for client UI state
+- [x] Routing: TanStack Router (file-based via `tanstackRouter` vite plugin); routes Dashboard, Accounts, Settings; `/` redirects to `/dashboard`
+- [x] Design system: shadcn/ui primitives (button, card, table, select, skeleton) + Tailwind v4 (CSS-first `@theme`)
+- [x] Theme: light / dark / system (default system) via a `data-theme` attribute; dual-token system (`--op-*` app tokens + shadcn tokens) share one dark signal — see ADR-0002
+- [x] Layout primitives: collapsible-sidebar app shell, main content area, right-hand AI-chat drawer slot reserved (empty until WS9)
+- [x] Error boundaries at the route level (`RouteErrorBoundary`) rendering the `{ code, message }` envelope with a Retry
+- [x] Loading states: shadcn `Skeleton` rows (no spinners)
+- [x] `Money` display: `formatMoney` re-exports the tested `@shared/money.format` (no float in the display layer). Not exercised by WS4 UI — the Accounts table has no money column (first Money UI consumer is WS7)
+- [x] Backend `GET /api/v1/accounts` route pulled forward from W5 (read-only, soft-delete-filtered, snake_case→camelCase, response schema-validated) to prove the DB→API→render chain
 
-Remaining:
-- [ ] Vite config with absolute-path imports (`@/components/...`)
-- [ ] TypeScript strict mode; no `any` without justification
-- [ ] State management: TanStack Query for server state, Zustand for client UI state (avoid mixing the two)
-- [ ] Routing: TanStack Router or react-router; one or two top-level routes (Dashboard, Settings) is enough for v1.0
-- [ ] Design system: shadcn/ui base components, Tailwind v4 for styling
-- [ ] Theme: light and dark, default to system preference
-- [ ] Layout primitives: app shell with sidebar, main content area, optional right-hand drawer for AI chat
-- [ ] Error boundaries at the route level with user-readable fallback UI
-- [ ] Loading states: skeleton screens where data is expected, not spinners
-- [ ] Formatting library for `Money` display (locale-aware, configurable currency symbol, no float conversions in display layer)
+Deferred to dependent workstreams (spec-aligned, not WS4 backlog):
+- Account write paths (create/edit/archive) — W5
+- Dashboard tiles, dnd-kit, layout persistence — W7
+- AI chat drawer content (the slot is rendered) — W9
+- Electron packaging (`pnpm dev` is the only run target) — W11
+- Playwright / E2E and the enforced coverage gate — W12
 
 ---
 
