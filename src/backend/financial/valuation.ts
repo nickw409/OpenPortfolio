@@ -11,14 +11,7 @@ import { add, multiplyByRatio, negate, ZERO, type Money } from '@shared/money';
 
 import { FinancialError } from './errors';
 import { computeLots } from './lots';
-import type {
-  DateRange,
-  PriceHistory,
-  Scope,
-  Tx,
-  ValuationPoint,
-  ValuationSeries,
-} from './types';
+import type { DateRange, PriceHistory, Scope, Tx, ValuationPoint, ValuationSeries } from './types';
 
 export interface ComputeValuationSeriesOptions {
   scope: Scope;
@@ -61,11 +54,7 @@ export function computeValuationSeries(
   // are summed per scope; TR-index chains from those daily returns.
   const maxStale = opts.maxStalenessDays ?? DEFAULT_MAX_STALENESS_DAYS;
   const points: ValuationPoint[] = [];
-  for (
-    let t = fromUtc.getTime();
-    t <= toUtc.getTime();
-    t += ONE_DAY_MS
-  ) {
+  for (let t = fromUtc.getTime(); t <= toUtc.getTime(); t += ONE_DAY_MS) {
     const day = new Date(t);
 
     // TODO(perf): computeLots re-sorts each group's transactions on every
@@ -139,11 +128,7 @@ function groupTxns(txns: ReadonlyArray<Tx>): Array<Tx[]> {
 // Sums external cashflows on `date` under the chosen scope. Portfolio
 // scope: deposit (+) and withdrawal (−) only. Account scope: also
 // transfer_in (+) and transfer_out (−) for the chosen account.
-function externalCashflowOnDay(
-  txns: ReadonlyArray<Tx>,
-  date: Date,
-  scope: Scope,
-): Money {
+function externalCashflowOnDay(txns: ReadonlyArray<Tx>, date: Date, scope: Scope): Money {
   const dayStart = startOfUtcDay(date).getTime();
   const dayEnd = dayStart + ONE_DAY_MS;
   const accountId = typeof scope === 'object' ? scope.account_id : null;
@@ -158,8 +143,7 @@ function externalCashflowOnDay(
     if (kind === 'deposit') sum = add(sum, tx.amount_cents);
     else if (kind === 'withdrawal') sum = add(sum, negate(tx.amount_cents));
     else if (accountId !== null && kind === 'transfer_in') sum = add(sum, tx.amount_cents);
-    else if (accountId !== null && kind === 'transfer_out')
-      sum = add(sum, negate(tx.amount_cents));
+    else if (accountId !== null && kind === 'transfer_out') sum = add(sum, negate(tx.amount_cents));
   }
   return sum;
 }
@@ -207,16 +191,12 @@ function carryForwardPrice(
   const last = series[idx]!;
   const ageDays = (t - last.date.getTime()) / ONE_DAY_MS;
   if (ageDays > maxStalenessDays) {
-    throw new FinancialError(
-      'price.stale',
-      'last price is older than maxStalenessDays',
-      {
-        security_id: securityId,
-        requested_date: date,
-        last_price_date: last.date,
-        max_staleness_days: maxStalenessDays,
-      },
-    );
+    throw new FinancialError('price.stale', 'last price is older than maxStalenessDays', {
+      security_id: securityId,
+      requested_date: date,
+      last_price_date: last.date,
+      max_staleness_days: maxStalenessDays,
+    });
   }
   return last.price_cents;
 }

@@ -19,12 +19,9 @@ export function computeTimeWeightedReturn(series: ValuationSeries): TwrResult {
   const first = series.points[0]!;
   const last = series.points[series.points.length - 1]!;
   const totalReturn = last.tr_index / first.tr_index - 1;
-  const days =
-    (last.date.getTime() - first.date.getTime()) / ONE_DAY_MS;
+  const days = (last.date.getTime() - first.date.getTime()) / ONE_DAY_MS;
   const annualized =
-    days >= DAYS_PER_YEAR
-      ? (Math.pow(1 + totalReturn, DAYS_PER_YEAR / days) - 1) * 100
-      : null;
+    days >= DAYS_PER_YEAR ? (Math.pow(1 + totalReturn, DAYS_PER_YEAR / days) - 1) * 100 : null;
   return {
     return_pct: totalReturn * 100,
     annualized_pct: annualized,

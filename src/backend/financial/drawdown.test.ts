@@ -1,6 +1,17 @@
 import { computeDrawdown } from './drawdown';
 import { computeValuationSeries } from './valuation';
-import { buildCpiSeries, buildPriceHistory, buildTx, D, dateD, loadFixture, resetTxIds, revivePrices, reviveTxns, type DrawdownFixture } from './test-helpers';
+import {
+  buildCpiSeries,
+  buildPriceHistory,
+  buildTx,
+  D,
+  dateD,
+  loadFixture,
+  resetTxIds,
+  revivePrices,
+  reviveTxns,
+  type DrawdownFixture,
+} from './test-helpers';
 import { FinancialError } from './errors';
 
 beforeEach(() => resetTxIds());
@@ -17,7 +28,14 @@ describe('computeDrawdown — flat market', () => {
       }),
     ];
     const prices = buildPriceHistory([
-      [1, [['2026-01-01', 1000], ['2026-01-07', 1000], ['2026-01-10', 1000]]],
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-01-07', 1000],
+          ['2026-01-10', 1000],
+        ],
+      ],
     ]);
     const series = computeValuationSeries(
       txns,
@@ -65,7 +83,9 @@ describe('computeDrawdown — peak / trough / recovery', () => {
     expect(result.nominal.max_drawdown_pct).toBeCloseTo(-50, 4);
     expect(result.nominal.max_drawdown_peak_date.toISOString().slice(0, 10)).toBe('2026-01-02');
     expect(result.nominal.max_drawdown_trough_date.toISOString().slice(0, 10)).toBe('2026-01-03');
-    expect(result.nominal.max_drawdown_recovery_date!.toISOString().slice(0, 10)).toBe('2026-01-04');
+    expect(result.nominal.max_drawdown_recovery_date!.toISOString().slice(0, 10)).toBe(
+      '2026-01-04',
+    );
     expect(result.nominal.current_drawdown_pct).toBe(0); // at new high
   });
 });
@@ -170,7 +190,15 @@ describe('computeDrawdown — real branch', () => {
         amount_cents: D(1000),
       }),
     ];
-    const prices = buildPriceHistory([[1, [['2026-01-01', 1000], ['2026-02-01', 1100]]]]);
+    const prices = buildPriceHistory([
+      [
+        1,
+        [
+          ['2026-01-01', 1000],
+          ['2026-02-01', 1100],
+        ],
+      ],
+    ]);
     const series = computeValuationSeries(
       txns,
       prices,

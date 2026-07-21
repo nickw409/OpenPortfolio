@@ -56,11 +56,7 @@ describe('softDelete + activeFilter', () => {
     const changes = softDelete(db, accounts, eq(accounts.id, inserted!.id));
     expect(changes).toBe(1);
 
-    const [row] = db
-      .select()
-      .from(accounts)
-      .where(eq(accounts.id, inserted!.id))
-      .all();
+    const [row] = db.select().from(accounts).where(eq(accounts.id, inserted!.id)).all();
     expect(row).toBeDefined();
     expect(row!.deleted_at).toBeInstanceOf(Date);
   });

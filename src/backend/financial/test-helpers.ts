@@ -82,10 +82,7 @@ export function buildCpiSeries(
 
 // Raw (JSON-serialized) counterparts of the domain types: Dates are ISO
 // strings and Money is a plain cents number until revived below.
-export type RawTx = Omit<
-  Tx,
-  'transaction_date' | 'price_cents' | 'amount_cents' | 'fee_cents'
-> & {
+export type RawTx = Omit<Tx, 'transaction_date' | 'price_cents' | 'amount_cents' | 'fee_cents'> & {
   transaction_date: string;
   price_cents: number | null;
   amount_cents: number;

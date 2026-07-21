@@ -193,29 +193,29 @@ export interface ValuationSeries {
 // ─── slice 2: TWR / MWR / drawdown / real / allocation results ──────────
 
 export interface TwrResult {
-  return_pct: number;            // total period
+  return_pct: number; // total period
   annualized_pct: number | null; // null when range < 365.25 days
   days: number;
 }
 
 export interface MwrResult {
-  irr_pct: number;                            // annualized
+  irr_pct: number; // annualized
   iterations: number;
   method: 'newton' | 'bisection';
 }
 
 export interface DrawdownStats {
-  max_drawdown_pct: number;                    // in [−100, 0]
+  max_drawdown_pct: number; // in [−100, 0]
   max_drawdown_peak_date: Date;
   max_drawdown_trough_date: Date;
-  max_drawdown_recovery_date: Date | null;     // null if never recovered
-  current_drawdown_pct: number;                // in [−100, 0]; 0 if at all-time high
+  max_drawdown_recovery_date: Date | null; // null if never recovered
+  current_drawdown_pct: number; // in [−100, 0]; 0 if at all-time high
   current_peak_date: Date;
 }
 
 export interface DrawdownResult {
   nominal: DrawdownStats;
-  real: DrawdownStats | null;                  // null when cpi omitted
+  real: DrawdownStats | null; // null when cpi omitted
 }
 
 export interface RealReturnResult {

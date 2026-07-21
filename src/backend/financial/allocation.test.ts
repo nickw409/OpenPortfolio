@@ -2,10 +2,17 @@ import { ofCents } from '@shared/money';
 
 import { FinancialError } from './errors';
 import { computeAllocation } from './allocation';
-import { loadFixture, reviveLots, type AllocationFixture, type TagAllocationFixture } from './test-helpers';
+import {
+  loadFixture,
+  reviveLots,
+  type AllocationFixture,
+  type TagAllocationFixture,
+} from './test-helpers';
 import type { Lot, PortfolioSnapshot } from './types';
 
-function snap(positions: Array<{ account_id: number; security_id: number; mv: number; cb: number }>): PortfolioSnapshot {
+function snap(
+  positions: Array<{ account_id: number; security_id: number; mv: number; cb: number }>,
+): PortfolioSnapshot {
   return {
     positions: positions.map((p) => ({
       account_id: p.account_id,
@@ -131,10 +138,42 @@ describe('computeAllocation — by tag', () => {
   };
   // sec 1 lots price at 120¢/sh → 6000¢ each; sec 2 lots at 100¢/sh → 10000¢ each.
   const lots: Lot[] = [
-    { sourceTxId: 1, account_id: 1, security_id: 1, acquired_at: new Date('2026-01-01T00:00:00Z'), quantity: 50, cost_basis_cents: ofCents(5000), currency_code: 'USD' },
-    { sourceTxId: 2, account_id: 1, security_id: 1, acquired_at: new Date('2026-02-01T00:00:00Z'), quantity: 50, cost_basis_cents: ofCents(6000), currency_code: 'USD' },
-    { sourceTxId: 3, account_id: 1, security_id: 2, acquired_at: new Date('2026-03-01T00:00:00Z'), quantity: 100, cost_basis_cents: ofCents(8000), currency_code: 'USD' },
-    { sourceTxId: 4, account_id: 1, security_id: 2, acquired_at: new Date('2026-04-01T00:00:00Z'), quantity: 100, cost_basis_cents: ofCents(9000), currency_code: 'USD' },
+    {
+      sourceTxId: 1,
+      account_id: 1,
+      security_id: 1,
+      acquired_at: new Date('2026-01-01T00:00:00Z'),
+      quantity: 50,
+      cost_basis_cents: ofCents(5000),
+      currency_code: 'USD',
+    },
+    {
+      sourceTxId: 2,
+      account_id: 1,
+      security_id: 1,
+      acquired_at: new Date('2026-02-01T00:00:00Z'),
+      quantity: 50,
+      cost_basis_cents: ofCents(6000),
+      currency_code: 'USD',
+    },
+    {
+      sourceTxId: 3,
+      account_id: 1,
+      security_id: 2,
+      acquired_at: new Date('2026-03-01T00:00:00Z'),
+      quantity: 100,
+      cost_basis_cents: ofCents(8000),
+      currency_code: 'USD',
+    },
+    {
+      sourceTxId: 4,
+      account_id: 1,
+      security_id: 2,
+      acquired_at: new Date('2026-04-01T00:00:00Z'),
+      quantity: 100,
+      cost_basis_cents: ofCents(9000),
+      currency_code: 'USD',
+    },
   ];
   const lotTags = new Map<number, string[]>([
     [1, ['core']],
@@ -190,7 +229,10 @@ describe('fixture: allocation-by-class', () => {
       as_of: new Date(fx.snapshot.as_of),
     };
     const securities = new Map(
-      Object.entries(fx.securities).map(([k, v]): [number, { asset_class: string }] => [Number(k), v]),
+      Object.entries(fx.securities).map(([k, v]): [number, { asset_class: string }] => [
+        Number(k),
+        v,
+      ]),
     );
     const result = computeAllocation(snap, { dimension: 'asset_class', securities });
     expect(result.buckets.find((b) => b.key === 'equity')!.weight_pct).toBeCloseTo(

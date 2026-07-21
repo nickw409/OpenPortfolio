@@ -2,12 +2,30 @@
   "name": "drawdown-2008",
   "description": "Synthetic 18-month series: rise to peak, 40% drop to trough, partial recovery (still below peak when series ends). Expected: max_drawdown_pct ≈ -40, recovery_date = null.",
   "transactions": [
-    { "id": 1, "account_id": 1, "security_id": null, "transaction_type": "deposit",
-      "transaction_date": "2026-01-01T00:00:00Z", "quantity": 0, "price_cents": null,
-      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" },
-    { "id": 2, "account_id": 1, "security_id": 1, "transaction_type": "buy",
-      "transaction_date": "2026-01-01T00:00:00Z", "quantity": 100, "price_cents": 10000,
-      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" }
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": null,
+      "transaction_type": "deposit",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 1000000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-01T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 10000,
+      "amount_cents": 1000000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
   ],
   "price_history": {
     "1": [

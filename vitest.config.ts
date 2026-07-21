@@ -16,15 +16,19 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.{test,spec}.ts', 'tests/**/*.{test,spec}.ts'],
+    setupFiles: ['./tests/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'tests/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['**/routeTree.gen.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: [
         'src/**/*.d.ts',
-        'src/**/*.{test,spec}.ts',
+        'src/**/*.{test,spec}.{ts,tsx}',
         'src/frontend/main.tsx',
+        'src/frontend/routes/__root.tsx',
+        'src/frontend/routeTree.gen.ts',
         'src/electron/**',
         'src/**/index.ts',
       ],

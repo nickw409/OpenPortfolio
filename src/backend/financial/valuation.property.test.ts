@@ -12,7 +12,11 @@ import type { PriceHistory, Tx } from './types';
 // Build a buy-and-hold txn list plus a price history of `nDays` days where
 // price is `startPrice × (1 + return)^d`. Daily return is constant; TR
 // index should match (1 + return)^d exactly (within FP epsilon).
-function makeConstantReturnInputs(nDays: number, dailyReturn: number, startCents: number): {
+function makeConstantReturnInputs(
+  nDays: number,
+  dailyReturn: number,
+  startCents: number,
+): {
   txns: Tx[];
   prices: PriceHistory;
   from: Date;
@@ -83,8 +87,18 @@ describe('property: scale invariance', () => {
             quantity: t.quantity * 2,
             amount_cents: multiplyByRatio(t.amount_cents, 2),
           }));
-          const seriesA = computeValuationSeries(a.txns, a.prices, { from: a.from, to: a.to }, { scope: 'portfolio' });
-          const seriesB = computeValuationSeries(b.txns, b.prices, { from: b.from, to: b.to }, { scope: 'portfolio' });
+          const seriesA = computeValuationSeries(
+            a.txns,
+            a.prices,
+            { from: a.from, to: a.to },
+            { scope: 'portfolio' },
+          );
+          const seriesB = computeValuationSeries(
+            b.txns,
+            b.prices,
+            { from: b.from, to: b.to },
+            { scope: 'portfolio' },
+          );
           for (let i = 0; i < seriesA.points.length; i++) {
             expect(seriesA.points[i]!.tr_index).toBeCloseTo(seriesB.points[i]!.tr_index, 8);
           }

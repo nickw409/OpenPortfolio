@@ -2,12 +2,30 @@
   "name": "pre-funding-days",
   "description": "Account empty through 2026-01-10 (10 days); deposit + buy on 2026-01-11 at $100; price moves to $110 on 2026-01-12. TR index is 1.0 for all 11 days from Jan 1 through Jan 11 (Jan 11 has same-day deposit-and-buy with zero return), then moves to ~1.10 on Jan 12.",
   "transactions": [
-    { "id": 1, "account_id": 1, "security_id": null, "transaction_type": "deposit",
-      "transaction_date": "2026-01-11T00:00:00Z", "quantity": 0, "price_cents": null,
-      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" },
-    { "id": 2, "account_id": 1, "security_id": 1, "transaction_type": "buy",
-      "transaction_date": "2026-01-11T00:00:00Z", "quantity": 100, "price_cents": 10000,
-      "amount_cents": 1000000, "fee_cents": null, "currency_code": "USD" }
+    {
+      "id": 1,
+      "account_id": 1,
+      "security_id": null,
+      "transaction_type": "deposit",
+      "transaction_date": "2026-01-11T00:00:00Z",
+      "quantity": 0,
+      "price_cents": null,
+      "amount_cents": 1000000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    },
+    {
+      "id": 2,
+      "account_id": 1,
+      "security_id": 1,
+      "transaction_type": "buy",
+      "transaction_date": "2026-01-11T00:00:00Z",
+      "quantity": 100,
+      "price_cents": 10000,
+      "amount_cents": 1000000,
+      "fee_cents": null,
+      "currency_code": "USD"
+    }
   ],
   "price_history": {
     "1": [
@@ -19,7 +37,7 @@
   "scope": "portfolio",
   "expected": {
     "tr_index_day_1_through_11_all_1": true,
-    "tr_index_day_12_approx": 1.10,
+    "tr_index_day_12_approx": 1.1,
     "twr_return_pct_approx": 10.0
   }
 }

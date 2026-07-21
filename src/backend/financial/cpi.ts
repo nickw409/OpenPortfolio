@@ -18,14 +18,10 @@ export function cpiAt(cpi: CpiSeries, date: Date): number {
   const first = cpi[0]!;
   const last = cpi[cpi.length - 1]!;
   if (t < first.date.getTime() || t > last.date.getTime()) {
-    throw new FinancialError(
-      'cpi.out_of_range',
-      'CPI series does not cover the requested date',
-      {
-        requested_date: date,
-        cpi_range: { from: first.date, to: last.date },
-      },
-    );
+    throw new FinancialError('cpi.out_of_range', 'CPI series does not cover the requested date', {
+      requested_date: date,
+      cpi_range: { from: first.date, to: last.date },
+    });
   }
   // Binary search for the segment that brackets t. The series is small
   // enough that a linear scan would also be fast; binary search is used

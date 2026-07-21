@@ -93,14 +93,40 @@ describe('computeMoneyWeightedReturn — intermediate cashflows', () => {
     pricePts.push(['2027-01-02', 12000]);
 
     const txns = [
-      buildTx({ id: 1, transaction_type: 'deposit', transaction_date: dateD('2026-01-01'),
-        security_id: null, quantity: 0, price_cents: null, amount_cents: D(10000) }),
-      buildTx({ id: 2, transaction_type: 'buy', transaction_date: dateD('2026-01-01'),
-        quantity: 100, price_cents: D(100), amount_cents: D(10000) }),
-      buildTx({ id: 3, transaction_type: 'deposit', transaction_date: dateD('2026-07-01'),
-        security_id: null, quantity: 0, price_cents: null, amount_cents: D(5000) }),
-      buildTx({ id: 4, transaction_type: 'buy', transaction_date: dateD('2026-07-01'),
-        quantity: 50, price_cents: D(100), amount_cents: D(5000) }),
+      buildTx({
+        id: 1,
+        transaction_type: 'deposit',
+        transaction_date: dateD('2026-01-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(10000),
+      }),
+      buildTx({
+        id: 2,
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-01-01'),
+        quantity: 100,
+        price_cents: D(100),
+        amount_cents: D(10000),
+      }),
+      buildTx({
+        id: 3,
+        transaction_type: 'deposit',
+        transaction_date: dateD('2026-07-01'),
+        security_id: null,
+        quantity: 0,
+        price_cents: null,
+        amount_cents: D(5000),
+      }),
+      buildTx({
+        id: 4,
+        transaction_type: 'buy',
+        transaction_date: dateD('2026-07-01'),
+        quantity: 50,
+        price_cents: D(100),
+        amount_cents: D(5000),
+      }),
     ];
     const prices = buildPriceHistory([[1, pricePts]]);
     const series = computeValuationSeries(

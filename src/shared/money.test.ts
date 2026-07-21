@@ -232,14 +232,10 @@ describe('algebraic properties', () => {
   });
 
   it('multiplyByRatio output is always integer cents', () => {
-    fc.assert(
-      fc.property(cents(), ratio(), (a, r) => Number.isInteger(multiplyByRatio(a, r))),
-    );
+    fc.assert(fc.property(cents(), ratio(), (a, r) => Number.isInteger(multiplyByRatio(a, r))));
   });
 
   it('format -> parse round-trips for representable cents', () => {
-    fc.assert(
-      fc.property(cents(), (a) => parse(format(a).replace(/[$,\s]/g, '')) === a),
-    );
+    fc.assert(fc.property(cents(), (a) => parse(format(a).replace(/[$,\s]/g, '')) === a));
   });
 });
