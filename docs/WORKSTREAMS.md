@@ -55,9 +55,9 @@ Deferred to dependent workstreams (spec-aligned, not WS2 backlog):
 
 ## 3. Financial calculation engine
 
-**Status: In progress.** Slice 1 (lots, basis, realized/unrealized, dividends) complete. Slice 2 (returns, drawdown, real returns, allocation) not yet started — separate spec pending.
+**Status: Complete.** Slice 1 (lots, basis, realized/unrealized, dividends) and slice 2 (TWR, MWR/IRR, drawdown, real returns net of CPI, allocation) both landed. Two checklist items are deliberately out of engine scope: the `regen-financial-fixtures.ts` typing helper (F7, not built — fixtures are hand-authored) and CI coverage enforcement (lands with W12).
 
-The core business logic. Pure functions over `Money` values; no side effects, no I/O, no AI involvement. This is the audited deterministic code that AI features will call into. Engine lives at [src/backend/financial/](../src/backend/financial/); spec for slice 1 in [specs/2026-05-18-financial-engine-slice-1.md](specs/2026-05-18-financial-engine-slice-1.md).
+The core business logic. Pure functions over `Money` values; no side effects, no I/O, no AI involvement. This is the audited deterministic code that AI features will call into. Engine lives at [src/backend/financial/](../src/backend/financial/); specs in [specs/2026-05-18-financial-engine-slice-1.md](specs/2026-05-18-financial-engine-slice-1.md) and [specs/2026-05-19-financial-engine-slice-2.md](specs/2026-05-19-financial-engine-slice-2.md).
 
 Landed (slice 1):
 - [x] Pure-function API surface over typed records, no DB/I/O dependencies (F1) — five top-level functions: `computeLots`, `computePosition`, `computePortfolio`, `computeRealizedGainsLoss`, `computeIncomeStream`
@@ -72,14 +72,18 @@ Landed (slice 1):
 - [x] Property-based test asserting cents-of-drift bound under random transaction histories ([lots.property.test.ts](../src/backend/financial/lots.property.test.ts))
 - [x] Golden-dataset fixtures under [tests/fixtures/financial/](../tests/fixtures/financial/): `simple-buy-sell`, `split-mid-history`, `multi-account`, `dividend-stream`, `realized-loss`
 
-Remaining (slice 2, separate spec to come):
-- [ ] Time-weighted return (TWR) calculation
-- [ ] Money-weighted return (MWR / IRR) calculation
-- [ ] Drawdown calculation: max drawdown, current drawdown, drawdown duration, time-to-recovery
-- [ ] **Real returns net of CPI**: load CPI series from `cpi_data` table; deflate nominal returns to constant-dollar real returns; this is the default display surface
-- [ ] Allocation calculations: by asset class, by account, by security, by custom tag
-- [ ] Golden-dataset fixtures extended with hand-computed TWR/MWR/drawdown values
-- [ ] `scripts/regen-financial-fixtures.ts` typing-convenience regen helper (F7)
+Landed (slice 2, spec [specs/2026-05-19-financial-engine-slice-2.md](specs/2026-05-19-financial-engine-slice-2.md)):
+- [x] Daily valuation-series spine (`computeValuationSeries`) — the choke point TWR/MWR/drawdown reduce over; carry-forward pricing with a staleness ceiling (F1, F5)
+- [x] Time-weighted return (TWR) via daily geometric chaining of the TR index (`computeTimeWeightedReturn`)
+- [x] Money-weighted return (MWR / IRR) — Newton-Raphson seeded by TWR with bisection fallback, typed failure taxonomy (`computeMoneyWeightedReturn`)
+- [x] Drawdown calculation: max drawdown, current drawdown, peak/trough/recovery dates — nominal and CPI-real (`computeDrawdown`)
+- [x] **Real returns net of CPI**: linear CPI interpolation, no extrapolation; deflates nominal to constant-dollar real (`computeRealReturn`, `cpiAt`). CPI series is caller-injected — loading it from the `cpi_data` table is W6
+- [x] Allocation calculations: by asset class, by account, by security (partitions), and by custom tag (lot-stream attribution, weights can exceed 100%) (`computeAllocation`)
+- [x] Golden-dataset fixtures with hand-computed values: `daily-twr-simple`, `cashflows-mid-period`, `drawdown-2008`, `real-returns-1979-1981`, `allocation-by-class`, `allocation-by-tag`, `pre-funding-days`
+- [x] Property tests: TWR ≡ geometric chain, TWR scale-invariance, valuation-series invariants ([valuation.property.test.ts](../src/backend/financial/valuation.property.test.ts))
+
+Deferred (not engine work):
+- [ ] `scripts/regen-financial-fixtures.ts` typing-convenience regen helper (F7) — not built; fixtures are hand-authored
 - [ ] Coverage thresholds enforced in CI (target: 95%+ on `src/backend/financial/`) — lands with W12 test infrastructure
 
 ---
