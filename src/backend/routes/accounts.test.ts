@@ -2,20 +2,25 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { Hono } from 'hono';
-import { resolve } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import pino, { type Logger } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { Db } from '@backend/db/client';
+import { closeDb, createDb, type Db } from '@backend/db/client';
 import * as schema from '@backend/db/schema';
 import { createErrorHandler } from '@backend/lib/error-handler';
+import { logger } from '@backend/lib/logger';
+import { runMigrations } from '@backend/db/migrate';
+
 import { createAccountsRoute } from './accounts';
 
 function silentLogger(): Logger {
   return pino({ level: 'silent' });
 }
 
-describe('GET /api/v1/accounts', () => {
+describe('GET /api/v1/accounts (main wire schema)', () => {
   let db: Db;
 
   beforeEach(() => {
@@ -102,7 +107,7 @@ describe('GET /api/v1/accounts', () => {
     const app = createAccountsRoute({ db });
     const res = await app.request('/');
     const body = (await res.json()) as { accounts: Array<Record<string, unknown>> };
-    const a = body.accounts[0];
+    const a = body.accounts[0]!;
     expect(a).toMatchObject({
       name: 'Test',
       broker: null,
@@ -110,7 +115,7 @@ describe('GET /api/v1/accounts', () => {
       costBasisMethod: 'fifo',
       currencyCode: 'USD',
     });
-    expect(typeof a?.createdAt).toBe('string');
+    expect(typeof a.createdAt).toBe('string');
     // No snake_case leakage
     expect(a).not.toHaveProperty('tax_treatment');
     expect(a).not.toHaveProperty('cost_basis_method');
@@ -143,5 +148,51 @@ describe('GET /api/v1/accounts', () => {
     const body = (await res.json()) as { code: string };
     expect(res.status).toBe(500);
     expect(body.code).toBe('internal.unknown');
+  });
+});
+
+describe('accounts routes CRUD', () => {
+  let dir: string;
+  let db: Db;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'op-racct-'));
+    db = createDb(join(dir, 't.sqlite'));
+    runMigrations(db);
+  });
+
+  afterEach(() => {
+    closeDb(db);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function app(): Hono {
+    const a = new Hono();
+    a.onError(createErrorHandler(logger));
+    a.route('/api/v1/accounts', createAccountsRoute({ db }));
+    return a;
+  }
+
+  it('POST creates and GET lists', async () => {
+    const post = await app().request('/api/v1/accounts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Brokerage', tax_treatment: 'taxable' }),
+    });
+    expect(post.status).toBe(201);
+    const list = await app().request('/api/v1/accounts');
+    const body = (await list.json()) as { accounts: { name: string }[] };
+    expect(body.accounts.map((x) => x.name)).toContain('Brokerage');
+  });
+
+  it('rejects an invalid tax treatment with a 400 envelope', async () => {
+    const res = await app().request('/api/v1/accounts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'x', tax_treatment: 'roth' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('validation.invalid_input');
   });
 });
