@@ -70,6 +70,8 @@ resulting 400. `updateTile` remains for single-tile moves to empty cells.
 - `GET /layouts/default` returns the flagged default when one already exists.
 - `POST .../tiles/reorder` swaps two tiles; a reorder that would overlap returns 400 and leaves positions unchanged.
 
-`src/frontend/dashboard/grid.test.tsx` covers `computeSwap` (swap, self-drop
-no-op, missing-tile no-op) and that the grid renders tiles from the default
-layout.
+On the frontend, `src/frontend/dashboard/use-layout.test.tsx` covers the
+`reorder` consumer of this endpoint (mapped payload, optimistic update, and
+rollback on failure); the reorder move sets it sends are produced and tested in
+`src/frontend/dashboard/grid-snap.test.ts` (see the free-form drag work in
+[../specs/2026-07-21-freeform-grid-drag.md](../specs/2026-07-21-freeform-grid-drag.md)).

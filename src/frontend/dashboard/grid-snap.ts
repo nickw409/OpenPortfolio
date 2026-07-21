@@ -36,6 +36,30 @@ export function clampPosition(pos: TilePosition): TilePosition {
   return { ...pos, x, y };
 }
 
+// Keyboard drag moves a lifted tile one grid cell per arrow press. Returns the
+// next pointer coordinate for dnd-kit (one whole cell stride from the current
+// one), or undefined for keys that are not arrows. The drop handler snaps the
+// accumulated delta back to whole cells.
+export function keyboardCellStep(
+  code: string,
+  current: { x: number; y: number },
+  containerWidth: number,
+): { x: number; y: number } | undefined {
+  const { colStride, rowStride } = gridMetrics(containerWidth);
+  switch (code) {
+    case 'ArrowRight':
+      return { ...current, x: current.x + colStride };
+    case 'ArrowLeft':
+      return { ...current, x: current.x - colStride };
+    case 'ArrowDown':
+      return { ...current, y: current.y + rowStride };
+    case 'ArrowUp':
+      return { ...current, y: current.y - rowStride };
+    default:
+      return undefined;
+  }
+}
+
 function rectsOverlap(a: TilePosition, b: TilePosition): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }

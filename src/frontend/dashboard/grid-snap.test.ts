@@ -6,6 +6,7 @@ import {
   gridMetrics,
   pixelDeltaToCells,
   clampPosition,
+  keyboardCellStep,
   resolveDrop,
   computeDropMoves,
 } from './grid-snap';
@@ -26,8 +27,14 @@ describe('pixelDeltaToCells', () => {
     expect(pixelDeltaToCells(132, 56, m)).toEqual({ dx: 2, dy: 1 });
     expect(pixelDeltaToCells(-66, 0, m)).toEqual({ dx: -1, dy: 0 });
   });
-  it('rounds a half cell away from zero', () => {
+  it('rounds toward positive at the half-cell boundary (Math.round)', () => {
+    // A positive half rounds up to a move; a negative half rounds toward zero
+    // (no move). This asymmetry is inherent to Math.round and is intentional.
+    // (Math.round(-0.5) is -0, so compare magnitude to sidestep the -0/+0 quirk.)
     expect(pixelDeltaToCells(33, 28, m)).toEqual({ dx: 1, dy: 1 });
+    const half = pixelDeltaToCells(-33, -28, m);
+    expect(Math.abs(half.dx)).toBe(0);
+    expect(Math.abs(half.dy)).toBe(0);
   });
 });
 
@@ -35,6 +42,21 @@ describe('clampPosition', () => {
   it('pins x, y, and x+w inside the grid', () => {
     expect(clampPosition({ x: -3, y: -2, w: 4, h: 4 })).toEqual({ x: 0, y: 0, w: 4, h: 4 });
     expect(clampPosition({ x: 11, y: 5, w: 4, h: 4 })).toEqual({ x: 8, y: 5, w: 4, h: 4 });
+  });
+});
+
+describe('keyboardCellStep', () => {
+  // width 800 -> colStride 66 (colWidth 58 + gap 8), rowStride 56.
+  it('advances exactly one cell per arrow key', () => {
+    expect(keyboardCellStep('ArrowRight', { x: 100, y: 100 }, 800)).toEqual({ x: 166, y: 100 });
+    expect(keyboardCellStep('ArrowLeft', { x: 100, y: 100 }, 800)).toEqual({ x: 34, y: 100 });
+    expect(keyboardCellStep('ArrowDown', { x: 100, y: 100 }, 800)).toEqual({ x: 100, y: 156 });
+    expect(keyboardCellStep('ArrowUp', { x: 100, y: 100 }, 800)).toEqual({ x: 100, y: 44 });
+  });
+
+  it('returns undefined for non-arrow keys', () => {
+    expect(keyboardCellStep('Space', { x: 0, y: 0 }, 800)).toBeUndefined();
+    expect(keyboardCellStep('Enter', { x: 0, y: 0 }, 800)).toBeUndefined();
   });
 });
 
@@ -100,29 +122,52 @@ describe('computeDropMoves', () => {
   });
 });
 
+function overlapsAny(pos: TileItem['position'], others: TileItem['position'][]): boolean {
+  return others.some(
+    (a) => a.x < pos.x + pos.w && a.x + a.w > pos.x && a.y < pos.y + pos.h && a.y + a.h > pos.y,
+  );
+}
+
 describe('resolveDrop invariants (property)', () => {
   it('always produces an overlap-free, in-bounds arrangement with the dragged tile at dropPos', () => {
     fc.assert(
       fc.property(
+        // Small widths and a narrow y-range make tiles share rows, so the
+        // horizontal-cascade and carriage-return branches are actually reached.
+        // Candidates that would overlap an already-accepted tile are dropped,
+        // keeping the starting arrangement valid.
         fc.array(
           fc.record({
-            w: fc.integer({ min: 2, max: 12 }),
+            w: fc.integer({ min: 2, max: 6 }),
             h: fc.integer({ min: 2, max: 4 }),
             x: fc.integer({ min: 0, max: 11 }),
+            y: fc.integer({ min: 0, max: 8 }),
           }),
-          { minLength: 1, maxLength: 6 },
+          { minLength: 1, maxLength: 12 },
         ),
         fc.nat(1000),
         fc.integer({ min: -20, max: 20 }),
         fc.integer({ min: -20, max: 20 }),
         (specs, pick, dropDx, dropDy) => {
-          const tiles: TileItem[] = specs.map((s, i) => ({
-            id: i + 1,
-            layout_id: 1,
-            tile_type: 't',
-            position: { x: Math.min(s.x, GRID_COLUMNS - s.w), y: i * 4, w: s.w, h: s.h },
-            config: {},
-          }));
+          const tiles: TileItem[] = [];
+          for (const s of specs) {
+            const pos = { x: Math.min(s.x, GRID_COLUMNS - s.w), y: s.y, w: s.w, h: s.h };
+            if (
+              overlapsAny(
+                pos,
+                tiles.map((t) => t.position),
+              )
+            )
+              continue;
+            tiles.push({
+              id: tiles.length + 1,
+              layout_id: 1,
+              tile_type: 't',
+              position: pos,
+              config: {},
+            });
+          }
+          if (tiles.length === 0) return; // no valid tiles this run
           const dragged = tiles[pick % tiles.length]!;
           const dropPos = clampPosition({
             ...dragged.position,

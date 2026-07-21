@@ -15,10 +15,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@frontend/components/ui/card';
 import { getTileDefinition } from '@frontend/tiles/registry';
 
-import { computeDropMoves } from './grid-snap';
+import { computeDropMoves, keyboardCellStep } from './grid-snap';
 import { useLayout } from './use-layout';
 import type { TileItem } from './types';
-import { GRID_COLUMNS, GAP_PX, ROW_HEIGHT_PX, gridStyle, tileStyle } from './types';
+import { GRID_COLUMNS, gridStyle, tileStyle } from './types';
 
 export function DashboardGrid(): JSX.Element | null {
   const { layout, loading, error, reorder } = useLayout();
@@ -30,21 +30,7 @@ export function DashboardGrid(): JSX.Element | null {
   const keyboardCoordinateGetter = useCallback<KeyboardCoordinateGetter>(
     (event, { currentCoordinates }) => {
       const width = containerRef.current?.getBoundingClientRect().width ?? 0;
-      const usable = width - 2 * GAP_PX - (GRID_COLUMNS - 1) * GAP_PX;
-      const colStride = usable / GRID_COLUMNS + GAP_PX;
-      const rowStride = ROW_HEIGHT_PX + GAP_PX;
-      switch (event.code) {
-        case 'ArrowRight':
-          return { ...currentCoordinates, x: currentCoordinates.x + colStride };
-        case 'ArrowLeft':
-          return { ...currentCoordinates, x: currentCoordinates.x - colStride };
-        case 'ArrowDown':
-          return { ...currentCoordinates, y: currentCoordinates.y + rowStride };
-        case 'ArrowUp':
-          return { ...currentCoordinates, y: currentCoordinates.y - rowStride };
-        default:
-          return undefined;
-      }
+      return keyboardCellStep(event.code, currentCoordinates, width);
     },
     [],
   );
