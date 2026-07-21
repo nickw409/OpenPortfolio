@@ -110,36 +110,51 @@ Remaining:
 
 ## 5. Data ingestion
 
-**Status: Not started.**
+**Status: In progress.** Backend slice complete; UI deferred to Workstream 4.
 
 Manual transaction entry plus CSV import. Broker API integration is out of scope for v1.0 (see workstream 13 for out-of-scope items).
 
-Remaining:
+Landed (backend):
+- [x] Shared validation schemas for transactions, accounts, and tags (no future dates, positive quantity/price where required, symbol required for security-bearing types)
+- [x] Engine-backed over-sell rejection via `computeLots` over full account+security history
+- [x] Duplicate detection: (account, calendar day, security, quantity, price) key flagged as a non-blocking warning
+- [x] Transaction CRUD with audit trail: create, edit, soft-delete, list; bulk soft-delete and re-tag (all-or-nothing)
+- [x] Account management: create, rename, archive (soft delete); tax-treatment classification (taxable, tax_deferred, tax_free) and cost-basis method
+- [x] Tag service: create and list tags
+- [x] CSV parsing via `csv-parse` (RFC-4180 quoted fields, embedded commas/newlines)
+- [x] CSV column mapping + broker presets (Fidelity, Schwab, Vanguard, IBKR)
+- [x] CSV preview (dry-run, zero writes) and all-or-nothing commit over the canonical write path
+- [x] REST route groups for `/accounts`, `/transactions`, `/tags`, and `/import`
+
+Remaining (UI in Workstream 4):
 - [ ] Manual transaction entry form (buy, sell, dividend, fee, split, transfer, deposit, withdrawal)
 - [ ] CSV import with column-mapping UI: user uploads, sees a preview, maps columns to canonical fields
-- [ ] CSV format presets for common brokers (Fidelity, Schwab, Vanguard, IBKR) — best-effort, user can correct mappings before commit
-- [ ] Duplicate detection: hash of (date, security, quantity, price, account) flagged before insert
-- [ ] Validation rules: sells can't exceed current holdings; dates can't be in the future; quantities and prices positive
-- [ ] Transaction edit and soft-delete with audit trail
-- [ ] Bulk operations: select multiple, delete, re-tag
-- [ ] Account management: create, rename, archive (soft delete); tax-treatment classification (taxable, tax-deferred, tax-free)
+- [ ] CSV format presets surfaced as selectable broker templates
 
 ---
 
 ## 6. Price and CPI data
 
-**Status: Not started.**
+**Status: Complete.**
 
-Historical and current price data for valuing positions, plus CPI series for real-return calculations. User-configured provider; no provider is enabled by default.
+Historical and current price data for valuing positions, plus CPI series for real-return calculations. User-configured provider; no provider is enabled by default. Provider config is currently read from environment until a settings UI lands.
 
-Remaining:
-- [ ] Provider abstraction: `PriceProvider` interface with `getQuote(symbol)`, `getHistory(symbol, range)`
-- [ ] At least one provider implementation: Yahoo Finance scraping (free, fragile) or a paid provider with a user-supplied API key (Polygon, Alpha Vantage, Tiingo)
-- [ ] Caching layer in `price_history` table; respect provider rate limits
-- [ ] CPI series loader: download from BLS public data and store in `cpi_data`; refresh monthly
-- [ ] Price-staleness detection: warn the user when prices are more than N days old
-- [ ] Manual price entry as a fallback for illiquid or private holdings
-- [ ] Graceful degradation when no provider is configured: positions still display at cost basis with a clear "no live prices configured" indicator
+Landed:
+- [x] Provider abstraction: `PriceProvider` interface with `getQuote(symbol)`, `getHistory(symbol, range)` ([src/backend/services/market-data/types.ts](../src/backend/services/market-data/types.ts))
+- [x] Two provider implementations: Yahoo Finance scraping (free, fragile) and Polygon (user-supplied API key) ([src/backend/services/market-data/providers/yahoo.ts](../src/backend/services/market-data/providers/yahoo.ts), [polygon.ts](../src/backend/services/market-data/providers/polygon.ts))
+- [x] Provider registry + env-based config: `createPriceProvider`, `priceProviderConfigFromEnv` with `OPENPORTFOLIO_PRICE_PROVIDER` and `OPENPORTFOLIO_POLYGON_API_KEY` ([src/backend/services/market-data/provider-registry.ts](../src/backend/services/market-data/provider-registry.ts))
+- [x] Caching layer in `price_history` table; upserts, latest/history lookups, and manual overrides ([src/backend/services/market-data/price-cache.ts](../src/backend/services/market-data/price-cache.ts))
+- [x] Persistent rate-limit tracking via `provider_requests` table; hard-coded per-provider rules ([src/backend/services/market-data/rate-limiter.ts](../src/backend/services/market-data/rate-limiter.ts))
+- [x] `PriceService`: stale-price refresh, gap filling, manual overrides, and warning codes for stale / no-provider / no-price cases ([src/backend/services/market-data/price-service.ts](../src/backend/services/market-data/price-service.ts))
+- [x] CPI series loader: downloads BLS CPI-U `CUUR0000SA0`, stores in `cpi_data`, exposes series to the financial engine; monthly refresh endpoint ([src/backend/services/market-data/cpi-service.ts](../src/backend/services/market-data/cpi-service.ts))
+- [x] Routes mounted at `/api/v1/prices` and `/api/v1/cpi`: refresh, latest, history, and manual price ([src/backend/routes/prices.ts](../src/backend/routes/prices.ts), [cpi.ts](../src/backend/routes/cpi.ts))
+- [x] Graceful degradation: when no provider is configured, callers get a `PriceWarning` with `price.no_provider`; UI workstream will surface the cost-basis fallback
+- [x] Logger redact paths for API keys so provider keys don't leak into logs ([src/backend/lib/logger.ts](../src/backend/lib/logger.ts))
+
+Deferred to other workstreams:
+- [ ] Settings UI for provider selection and API-key entry (W4)
+- [ ] Background refresh scheduler / cron (W11 Electron shell)
+- [ ] CPI series UI overlay on charts (W7)
 
 ---
 
